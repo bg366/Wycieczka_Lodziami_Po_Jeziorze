@@ -1,10 +1,10 @@
 # Wycieczka_Lodziami_Po_Jeziorze
 
+Link do repozytorium: https://github.com/bg366/Wycieczka_Lodziami_Po_Jeziorze
+
 Po jeziorze w godzinach od Tp do Tk organizowane są rejsy wycieczkowe dwiema łodziami
 motorowymi o pojemności N1 i N2 pasażerów . Wejście i zejście z łodzi odbywa się pomostami
-połączonymi z molo o pojemności K (K<Ni) każdy. Wejścia te są bardzo wąskie, więc możliwy jest w
-
-nich jedynie ruch w jedną stronę w danej chwili czasu. Na łodzie próbują dostać się pasażerowie z
+połączonymi z molo o pojemności K (K<Ni) każdy. Wejścia te są bardzo wąskie, więc możliwy jest w nich jedynie ruch w jedną stronę w danej chwili czasu. Na łodzie próbują dostać się pasażerowie z
 tym, że nie może ich wejść więcej niż Ni, a wchodząc na daną łódź, na pomoście nie może być ich
 równocześnie więcej niż K. W momencie odpływania sternik na każdej łodzi musi dopilnować aby na
 pomoście nie było żadnego wchodzącego pasażera. Jednocześnie musi dopilnować by liczba
