@@ -56,17 +56,52 @@ Wątki:
 
 # Pamięć Współdzielona
 
-1. Łodzie
-   - Nr1
-   - Nr2
-2. Kolejki
-   - Do łodzi nr1
-   - Do łodzi nr2
-3. Pointery do semaforów
+1. Łodzie (listy fifo do których będę przypisywać pasażerów)
+   - Nr1 tablica FIFO
+   - Nr2 tablica FIFO
+2. Kolejki (listy fifo do których będę przypisywać pasażerów)
+   - Do łodzi nr1 tablica FIFO
+   - Do łodzi nr2 tablica FIFO
+3. Pointery do semaforów (dla pomostów)
    - Pomost nr1
    - Pomost nr2
-4. Kolejki komunikatów
-   - Z kasjerem
+
+# Setup
+
+## Obsluga
+
+- Zapytaj uzytkownika o dane
+- Stworz pamiec i alokuj pamiec
+- Stworz procesy (kazdy ma miec init)
+
+## Pamięć współdzielona
+
+- Stworz kolejke (w pliku najlepiej)
+- Init
+- Dolacz/odlacz proces
+- Usun kolejke
+
+## FIFO
+
+- Stworz liste (alokowana dynamicznie)
+- Dodaj element
+- Usun element
+- Sprawdz dlugosc
+- Usun liste
+
+## Kolejka komunikatow
+
+- Stworz kolejke
+- Dodaj/usun wiadomosc
+- Czytaj wiadomosc
+- Sprawdz czy jest nowa wiadomosc
+- Usun kolejke
+
+## Procesy
+
+- Stworz proces
+- Podlacz sie do pamieci
+- Usun proces (odlacz go od pamieci)
 
 # Pliki
 
