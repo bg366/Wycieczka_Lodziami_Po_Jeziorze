@@ -94,15 +94,15 @@ pid_t stworz_kasjera()
 }
 
 /* Funkcja do "zabicia" kasjera np. gdybyśmy chcieli przedwcześnie przerwać jego działanie */
-int zatrzymaj_kasjera(pid_t kasjerPid)
+int zatrzymaj_kasjera(pid_t pid_kasjera)
 {
-    if (kill(kasjerPid, SIGTERM) == -1)
+    if (kill(pid_kasjera, SIGTERM) == -1)
     {
-        perror("kill(kasjerPid)");
+        perror("kill(pid_kasjera)");
         return -1;
     }
     // Poczekajmy, aż się zakończy
     int status;
-    waitpid(kasjerPid, &status, 0);
+    waitpid(pid_kasjera, &status, 0);
     return 0;
 }

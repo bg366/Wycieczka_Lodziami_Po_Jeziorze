@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "kasjer.h"
+#include "sternik.h"
 #include "utils/interfejs.h"
 #include "utils/generator_pasazerow.h"
 #include "utils/kolejka_kasy.h"
@@ -18,6 +19,9 @@ int main()
     stworz_kolejke(key);
 
     stworz_kasjera();
+    for (int i = 1; i <= 2; i++) {
+        stworz_sternika(i);
+    }
 
     pid_t generator = stworz_generator_pasazerow();
     sleep(5);

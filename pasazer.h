@@ -21,7 +21,7 @@ typedef struct {
 pid_t stworz_pasazera();
 
 /* Funkcja usuwająca proces pasażera */
-int zatrzymaj_pasazera(pid_t passengerPid);
+int zatrzymaj_pasazera(pid_t pid_pasazera);
 
 /* Logika pasażera – co robi po utworzeniu?
    Wywoływana wewnątrz procesu pasażera. */

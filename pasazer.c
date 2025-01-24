@@ -145,16 +145,16 @@ pid_t stworz_pasazera()
 }
 
 /* Funkcja do "zabicia" pasażera np. gdybyśmy chcieli przedwcześnie przerwać jego działanie */
-int zatrzymaj_pasazera(pid_t pasazer_Pid)
+int zatrzymaj_pasazera(pid_t pid_pasazera)
 {
-    if (kill(pasazer_Pid, SIGTERM) == -1)
+    if (kill(pid_pasazera, SIGTERM) == -1)
     {
-        perror("kill(pasazer_Pid)");
+        perror("kill(pid_pasazera)");
         return -1;
     }
     // Poczekajmy, aż się zakończy
     int status;
-    waitpid(pasazer_Pid, &status, 0);
+    waitpid(pid_pasazera, &status, 0);
     return 0;
 }
 

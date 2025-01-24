@@ -10,6 +10,6 @@ void logika_kasjera();
 
 pid_t stworz_kasjera();
 
-int zatrzymaj_kasjera(pid_t passengerPid);
+int zatrzymaj_kasjera(pid_t pid_kasjera);
 
 #endif
