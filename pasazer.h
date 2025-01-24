@@ -3,6 +3,13 @@
 
 #include <sys/types.h>
 
+typedef struct {
+    int wiek;
+    int ma_dzieci;
+    int preferowana_lodz;
+    int powtarza_wycieczke;
+} Pasazer;
+
 /* Funkcja tworząca nowy proces pasażera (pojedynczy) */
 pid_t stworz_pasazera();
 
@@ -11,6 +18,6 @@ int zatrzymaj_pasazera(pid_t passengerPid);
 
 /* Logika pasażera – co robi po utworzeniu?
    Wywoływana wewnątrz procesu pasażera. */
-void logika_pasazera();
+void logika_pasazera(Pasazer *dane);
 
 #endif

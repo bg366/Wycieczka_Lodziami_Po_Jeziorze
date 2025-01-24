@@ -12,28 +12,33 @@
 #define MAX_SLEEP 3
 
 /* Funkcja pomocnicza generująca losową liczbę z przedziału [min, max] */
-static int losowy_okres_czasu(int min, int max) {
+static int losowy_okres_czasu(int min, int max)
+{
     if (max <= min) return min;
     return rand() % (max - min + 1) + min;
 }
 
 /* Funkcja do obsługi sygnału – przerwanie pętli w generatorze */
 static volatile sig_atomic_t stopFlag = 0;
-static void sigHandler(int signo) {
+static void sigHandler(int signo)
+{
     (void)signo; // ignoruj param
     stopFlag = 1;
 }
 
 /* Kod wykonywany przez proces generatora: w pętli tworzy pasażerów w losowych odstępach czasu, aż do otrzymania sygnału. */
-static void generuj_pasazerow() {
+static void generuj_pasazerow()
+{
     srand(time(NULL) ^ (getpid()<<16));
 
     printf("[GENERATOR_PASAZEROW %d] Start generatora pasażerów.\n", getpid());
 
-    while (!stopFlag) {
+    while (!stopFlag)
+    {
         // Stwórz pasażera
         pid_t p = stworz_pasazera();
-        if (p > 0) {
+        if (p > 0)
+        {
             printf("[GENERATOR_PASAZEROW %d] Utworzono pasażera PID=%d\n", getpid(), p);
         }
 
@@ -47,13 +52,16 @@ static void generuj_pasazerow() {
 }
 
 /* Uruchamia nowy proces – generator pasażerów */
-pid_t stworz_generator_pasazerow() {
+pid_t stworz_generator_pasazerow()
+{
     pid_t pid = fork();
-    if (pid < 0) {
+    if (pid < 0)
+    {
         perror("fork() dla generatora");
         return -1;
     }
-    if (pid == 0) {
+    if (pid == 0)
+    {
         // Proces potomny
         // Obsługa sygnału do zakończenia
         signal(SIGTERM, sigHandler);
@@ -66,13 +74,17 @@ pid_t stworz_generator_pasazerow() {
 }
 
 /* Zatrzymuje proces generatora (wysyła sygnał + czeka na zakończenie) */
-int zatrzymaj_generator_pasazerow(pid_t generatorPid) {
-    if (generatorPid <= 0) {
+int zatrzymaj_generator_pasazerow(pid_t generatorPid)
+{
+    if (generatorPid <= 0)
+    {
         fprintf(stderr, "Niepoprawny PID generatora!\n");
         return -1;
     }
-    if (kill(generatorPid, SIGTERM) == -1) {
-        if (errno == ESRCH) {
+    if (kill(generatorPid, SIGTERM) == -1)
+    {
+        if (errno == ESRCH)
+        {
             // Proces już nie istnieje
             return 0;
         }
@@ -81,7 +93,8 @@ int zatrzymaj_generator_pasazerow(pid_t generatorPid) {
     }
     // Czekamy na zakończenie
     int status;
-    if (waitpid(generatorPid, &status, 0) == -1) {
+    if (waitpid(generatorPid, &status, 0) == -1)
+    {
         perror("waitpid(generatorPid)");
         return -1;
     }
