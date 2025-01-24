@@ -1,5 +1,6 @@
 #include "pasazer.h"
 #include "utils/kolejka_kasy.h"
+#include "utils/pamiec_wspoldzielona.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -35,13 +36,22 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
     while(1)
     {
         poinformuj_kasjera(msgid, dane);
-
-        printf("PO POINFORMOWANIU\n");
-        int i = 0;
         OdpowiedzKasjera odpowiedz;
         odbierz_wiadomosc_kasjera(msgid, &odpowiedz);
 
-        printf("[PASAZER %d] Decyzja: %d\n", getpid(), odpowiedz.decyzja);
+        if (!odpowiedz.decyzja) {
+            printf("[PASAZER %d] Nie wpuszczono mnie na rejs\n", getpid());
+            break;
+        }
+
+        printf("[PASAZER %d] Wpuszczono mnie na rejs\n", getpid());
+
+        dane_wspolne_t *dw = dolacz_pamiec_wspoldzielona(key);
+        if (dane->preferowana_lodz == 1) {
+            dodaj_pasazera(dw, dane->powtarza_wycieczke ? KOLEJKA_1_VIP : KOLEJKA_1_NORMALNA, getpid());
+        } else {
+            dodaj_pasazera(dw, dane->powtarza_wycieczke ? KOLEJKA_2_VIP : KOLEJKA_2_NORMALNA, getpid());
+        }
 
         break;
     }
