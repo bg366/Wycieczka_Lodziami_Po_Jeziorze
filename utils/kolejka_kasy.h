@@ -18,6 +18,7 @@ typedef struct {
     pid_t pid;
     int wiek;
     int ma_dzieci;
+    int wiek_dziecka;
     int preferowana_lodz;
     int powtarza_wycieczke;
 } WiadomoscPasazera;

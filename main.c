@@ -24,6 +24,7 @@ int main()
     stworz_kolejke(key);
 
     stworz_kasjera();
+
     pid_t generator = stworz_generator_pasazerow();
     sleep(5);
     zatrzymaj_generator_pasazerow(generator);

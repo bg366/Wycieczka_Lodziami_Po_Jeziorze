@@ -1,7 +1,6 @@
 #include "kasjer.h"
 #include "utils/kolejka_kasy.h"
 #include <stdio.h>
-#include <string.h>
 #include <sys/ipc.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -21,17 +20,44 @@ void logika_kasjera()
         perror("ftok");
     }
     int msgid = polacz_kolejke(key);
+    int zarobek = 0;
 
     int i = 0;
     while(1)
     {
         WiadomoscPasazera wiadomosc;
         odbierz_wiadomosc_pasazera(msgid, &wiadomosc);
-        printf("‼️ DOSTALEM WIADOMOSC ‼️\n");
 
         OdpowiedzKasjera odpowiedz;
         odpowiedz.mtype = wiadomosc.pid;
-        odpowiedz.decyzja = 1;
+
+        // logika decyzji
+        if (wiadomosc.preferowana_lodz == 2 || wiadomosc.powtarza_wycieczke == 1)
+        {
+            odpowiedz.decyzja = 1;
+        }
+        else
+        {
+            if (wiadomosc.ma_dzieci || wiadomosc.wiek > 70)
+            {
+                odpowiedz.decyzja = 0;
+            }
+            else
+            {
+                odpowiedz.decyzja = 1;
+            }
+        }
+
+        // logika zarobku
+        int suma = 0;
+        if (wiadomosc.wiek >= 3) suma+=2;
+        if (wiadomosc.wiek_dziecka >= 3) suma+=2;
+        if (wiadomosc.powtarza_wycieczke)
+        {
+            suma = suma / 2;
+        }
+
+        zarobek += suma;
 
         poinformuj_pasazera(msgid, &odpowiedz);
         printf("[KASJER %d] Poinformowałem pasażera %d.\n", getpid(), wiadomosc.pid);

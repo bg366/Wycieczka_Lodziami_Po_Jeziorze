@@ -45,6 +45,7 @@ void poinformuj_kasjera(int msgid, Pasazer *dane)
     wiadomosc.ma_dzieci = dane->ma_dzieci;
     wiadomosc.powtarza_wycieczke = dane->powtarza_wycieczke;
     wiadomosc.preferowana_lodz = dane->preferowana_lodz;
+    wiadomosc.wiek_dziecka = dane->wiek_dziecka;
     wiadomosc.wiek = dane->wiek;
 
     // Wysłanie zgłoszenia do kasjera
