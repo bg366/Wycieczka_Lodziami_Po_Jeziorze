@@ -1,4 +1,5 @@
 #include "pasazer.h"
+#include "utils/fifo.h"
 #include "utils/kolejka_kasy.h"
 #include "utils/pamiec_wspoldzielona.h"
 #include <stdio.h>
@@ -52,6 +53,24 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
         } else {
             dodaj_pasazera(dw, dane->powtarza_wycieczke ? KOLEJKA_2_VIP : KOLEJKA_2_NORMALNA, getpid());
         }
+
+        // Pasażer tworzy osobistą listę fifo
+        char osobisty_fifo_str[25];
+        snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", dane->preferowana_lodz);
+        stworz_fifo(osobisty_fifo_str);
+
+        // Pasażer wysyła swój pid do sternika
+        char fifo_str[20];
+        snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", dane->preferowana_lodz);
+        wyslij_wiadomosc_do_fifo(fifo_str, osobisty_fifo_str);
+
+        // Pasażer czeka na wpuszczenie na statek
+        char wiadomosc[20];
+        odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof fifo_str);
+
+        wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WSZEDLEM");
+
+        usun_fifo(osobisty_fifo_str);
 
         break;
     }
@@ -123,9 +142,9 @@ pid_t stworz_pasazera()
         Pasazer dane;
         generuj_dane(&dane);
 
-        pthread_t dziecko;
+        pthread_t dziecko = NULL;
 
-        if (dane.ma_dzieci)
+        if (dane.ma_dzieci == 1)
         {
             dane.wiek_dziecka = losowa_liczba(1, 14);
             dziecko = stworz_dziecko(getpid(), dane.wiek_dziecka);

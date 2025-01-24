@@ -1,4 +1,5 @@
 #include "sternik.h"
+#include "utils/fifo.h"
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <unistd.h>
@@ -10,7 +11,6 @@
 stworz_sternika
 usun_sternika
 
-zapros_pasazera
 wypusc_pasazera
 
 zacznij_rejs
@@ -29,19 +29,43 @@ void logika_sternika(int lodz)
     {
         perror("ftok");
     }
+    char fifo_str[20];
+    snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", lodz);
+    stworz_fifo(fifo_str);
 
-    int i = 0;
     while(1)
     {
-        i++;
-        sleep(1);
-        if (i > 10)
-        {
-            break;
-        }
-    }
+        /*
+            Setup sternika gdzie w pętli:
+            1. Sprawcza czy nie minął czas rejsów i czy policja nie zatrzymała statku
+            2. Zaczyna wpuszczać ludzi na łódź
+            3. Wyrusza w rejs
+            4. Wypuszcza ludzi z łodzi
+        */
 
-    sleep(1); // Symulacja krótkiej pracy
+        // tu będzie check na czas i policje
+
+        // tu będzie wpuszczać pasażerów
+
+        // Sternik sprawdza ostatnią wiadomość
+        char osobisty_fifo_str[25];
+        odczytaj_wiadomosc_z_fifo(fifo_str, osobisty_fifo_str, sizeof osobisty_fifo_str);
+
+        // Sternik wysyła wiadomość do pasażera
+        wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WPUSZCZONY");
+
+        // Sternik czeka na odpowiedź
+        char odpowiedz[20];
+        odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, odpowiedz, sizeof odpowiedz);
+
+        // tu będzie wyruszać w rejs
+
+        // tu będzie wypuszczać pasażerów
+
+        break;
+    }
+    usun_fifo(fifo_str);
+
     printf("[STERNIK %d] Kończę.\n", getpid());
     _exit(0); // Bezpieczne zakończenie procesu potomnego
 }
