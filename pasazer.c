@@ -1,5 +1,6 @@
 #include "pasazer.h"
 #include "utils/fifo.h"
+#include "utils/interfejs.h"
 #include "utils/kolejka_kasy.h"
 #include "utils/pamiec_wspoldzielona.h"
 #include <stdio.h>
@@ -25,7 +26,7 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
      *  - Wejście na łódź, rejs, wyjście z łodzi, itp.
      */
 
-    printf("[PASAZER %d] Rozpoczynam logikę pasażera...\n", getpid());
+    printf(GREEN"[PASAZER %d] Rozpoczynam logikę pasażera...\n"RESET, getpid());
 
     key_t key = ftok("/tmp", 'K');
     if (key == -1)
@@ -41,11 +42,11 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
         odbierz_wiadomosc_kasjera(msgid, &odpowiedz);
 
         if (!odpowiedz.decyzja) {
-            printf("[PASAZER %d] Nie wpuszczono mnie na rejs\n", getpid());
+            printf(GREEN"[PASAZER %d] Nie wpuszczono mnie na rejs\n"RESET, getpid());
             break;
         }
 
-        printf("[PASAZER %d] Wpuszczono mnie na rejs\n", getpid());
+        printf(GREEN"[PASAZER %d] Wpuszczono mnie na rejs\n"RESET, getpid());
 
         dane_wspolne_t *dw = dolacz_pamiec_wspoldzielona(key);
         if (dane->preferowana_lodz == 1) {
@@ -76,22 +77,22 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
     }
 
     sleep(1); // Symulacja krótkiej pracy
-    printf("[PASAZER %d] Kończę.\n", getpid());
+    printf(GREEN"[PASAZER %d] Kończę.\n"RESET, getpid());
     _exit(0); // Bezpieczne zakończenie procesu potomnego
 }
 
 void* logika_dziecka(void *arg) {
     Dziecko *dziecko = (Dziecko*)arg;
 
-    printf("[CHILD THREAD] Jestem dzieckiem pasażera %d, mam %d lat.\n",
+    printf(GREEN"[CHILD THREAD] Jestem dzieckiem pasażera %d, mam %d lat.\n"RESET,
            dziecko->id_rodzica, dziecko->wiek);
 
     for (int i = 0; i < 5; i++) {
-        printf("[CHILD THREAD] Dziecko pasażera %d czeka...\n", dziecko->id_rodzica);
+        printf(GREEN"[CHILD THREAD] Dziecko pasażera %d czeka...\n"RESET, dziecko->id_rodzica);
         sleep(20);
     }
 
-    printf("[CHILD THREAD] Dziecko pasażera %d kończy swoje działanie.\n", dziecko->id_rodzica);
+    printf(GREEN"[CHILD THREAD] Dziecko pasażera %d kończy swoje działanie.\n"RESET, dziecko->id_rodzica);
 
     free(dziecko);
 
@@ -187,6 +188,6 @@ int zatrzymaj_dziecko(pthread_t dziecko_Tid) {
     }
 
     // Można dodać ewentualnie log:
-    printf("[PARENT] Zakończono wątek dziecka (TID=%lu)\n", (unsigned long)dziecko_Tid);
+    printf(GREEN"[PARENT] Zakończono wątek dziecka (TID=%lu)\n"RESET, (unsigned long)dziecko_Tid);
     return 0;
 }

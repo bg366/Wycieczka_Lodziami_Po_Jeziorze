@@ -1,5 +1,6 @@
 #include "kasjer.h"
 #include "utils/kolejka_kasy.h"
+#include "utils/interfejs.h"
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <unistd.h>
@@ -12,7 +13,7 @@ void logika_kasjera()
      * Logika kasjera
      */
 
-    printf("[KASJER %d] Rozpoczynam logikę kasjera...\n", getpid());
+    printf(CYAN"[KASJER %d] Rozpoczynam logikę kasjera...\n"RESET, getpid());
 
     key_t key = ftok("/tmp", 'K');
     if (key == -1)
@@ -60,7 +61,7 @@ void logika_kasjera()
         zarobek += suma;
 
         poinformuj_pasazera(msgid, &odpowiedz);
-        printf("[KASJER %d] Poinformowałem pasażera %d.\n", getpid(), wiadomosc.pid);
+        printf(CYAN"[KASJER %d] Poinformowałem pasażera %d.\n"RESET, getpid(), wiadomosc.pid);
         i++;
         sleep(1);
         if (i > 10)
@@ -70,7 +71,7 @@ void logika_kasjera()
     }
 
     sleep(1); // Symulacja krótkiej pracy
-    printf("[KASJER %d] Kończę.\n", getpid());
+    printf(CYAN"[KASJER %d] Kończę.\n"RESET, getpid());
     _exit(0); // Bezpieczne zakończenie procesu potomnego
 }
 

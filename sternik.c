@@ -1,5 +1,6 @@
 #include "sternik.h"
 #include "utils/fifo.h"
+#include "utils/interfejs.h"
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <unistd.h>
@@ -22,7 +23,7 @@ przerwij_rejsy
 
 void logika_sternika(int lodz)
 {
-    printf("[STERNIK %d] Rozpoczynam logikę sternika...\n", getpid());
+    printf(MAGENTA"[STERNIK %d] Rozpoczynam logikę sternika...\n"RESET, getpid());
 
     key_t key = ftok("/tmp", 'K');
     if (key == -1)
@@ -66,7 +67,7 @@ void logika_sternika(int lodz)
     }
     usun_fifo(fifo_str);
 
-    printf("[STERNIK %d] Kończę.\n", getpid());
+    printf(MAGENTA"[STERNIK %d] Kończę.\n"RESET, getpid());
     _exit(0); // Bezpieczne zakończenie procesu potomnego
 }
 
