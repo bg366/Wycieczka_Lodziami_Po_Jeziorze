@@ -1,0 +1,94 @@
+#include "semafor.h"
+#include <stdio.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/types.h>
+#include <errno.h>
+
+int stworz_semafor(key_t klucz, int wartosc_poczatkowa)
+{
+    int semid = semget(klucz, 1, IPC_CREAT | 0666);
+    if (semid == -1) {
+        perror("semget");
+        return -1;
+    }
+
+    union semun arg;
+    arg.val = wartosc_poczatkowa;
+
+    if (semctl(semid, 0, SETVAL, arg) == -1) {
+        perror("semctl(SETVAL)");
+        return -1;
+    }
+    return semid;
+}
+
+int podlacz_semafor(key_t klucz)
+{
+    int semid = semget(klucz, 1, IPC_CREAT | 0666);
+    if (semid == -1) {
+        perror("semget");
+        return -1;
+    }
+
+    return semid;
+}
+
+int usun_semafor(int semid)
+{
+    if (semid < 0) return -1;
+    if (semctl(semid, 0, IPC_RMID) == -1) {
+        perror("semctl(IPC_RMID)");
+        return -1;
+    }
+    return 0;
+}
+
+int pobierz_wartosc_semafor(int semid)
+{
+    if (semid < 0) return -1;
+
+    union semun arg;
+    int val = semctl(semid, 0, GETVAL, arg);
+    if (val == -1) {
+        perror("semctl(GETVAL)");
+        return -1;
+    }
+    return val;
+}
+
+int opusc_semafor(int semid)
+{
+    if (semid < 0) return -1;
+
+    struct sembuf sb;
+    sb.sem_num = 0;   /* mamy tylko jeden semafor w zestawie */
+    sb.sem_op = -1;   /* P: opuszczenie = decrement o 1 */
+    sb.sem_flg = 0;   /* brak IPC_NOWAIT – jeśli 0, czekamy */
+
+    if (semop(semid, &sb, 1) == -1) {
+        if (errno != EINTR) {
+            perror("semop(opusc)");
+        }
+        return -1;
+    }
+
+    return 0;
+}
+
+int podnies_semafor(int semid)
+{
+    if (semid < 0) return -1;
+
+    struct sembuf sb;
+    sb.sem_num = 0;
+    sb.sem_op = +1;   /* V: increment o 1 */
+    sb.sem_flg = 0;
+
+    if (semop(semid, &sb, 1) == -1) {
+        perror("semop(podnies)");
+        return -1;
+    }
+
+    return 0;
+}
