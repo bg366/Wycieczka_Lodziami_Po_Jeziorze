@@ -1,6 +1,7 @@
 #include "kasjer.h"
 #include "utils/kolejka_kasy.h"
 #include "utils/interfejs.h"
+#include "utils/pamiec_wspoldzielona.h"
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <unistd.h>
@@ -15,19 +16,27 @@ void logika_kasjera()
 
     printf(CYAN"[KASJER %d] Rozpoczynam logikę kasjera...\n"RESET, getpid());
 
-    key_t key = ftok("/tmp", 'K');
+    key_t key = ftok(FTOK_PATH, 'K');
     if (key == -1)
     {
         perror("ftok");
     }
     int msgid = polacz_kolejke(key);
+    dane_wspolne_t *dw = dolacz_pamiec_wspoldzielona(key);
     int zarobek = 0;
 
-    int i = 0;
-    while(1)
+    int stop = 0;
+    while(stop == 0)
     {
         WiadomoscPasazera wiadomosc;
-        odbierz_wiadomosc_pasazera(msgid, &wiadomosc);
+        int wynik = odbierz_wiadomosc_pasazera(msgid, &wiadomosc);
+        if (wynik != 1) {
+            if (dw->jest_koniec == 1) {
+                stop = 1;
+                break;
+            }
+            continue;
+        }
 
         OdpowiedzKasjera odpowiedz;
         odpowiedz.mtype = wiadomosc.pid;
@@ -60,19 +69,21 @@ void logika_kasjera()
 
         zarobek += suma;
 
-        poinformuj_pasazera(msgid, &odpowiedz);
-        printf(CYAN"[KASJER %d] Poinformowałem pasażera %d.\n"RESET, getpid(), wiadomosc.pid);
-        i++;
-        sleep(1);
-        if (i > 10)
-        {
-            break;
+        wynik = poinformuj_pasazera(msgid, &odpowiedz);
+        if (wynik != 1) {
+            if (dw->jest_koniec == 1) {
+                stop = 1;
+                break;
+            }
+            continue;
         }
+        printf(CYAN"[KASJER %d] Obsłużyłem pasażera %d.\n"RESET, getpid(), wiadomosc.pid);
     }
+    printf(CYAN"[KASJER %d] Przerywam prace\n"RESET, getpid());
 
-    sleep(1); // Symulacja krótkiej pracy
+    sleep(1);
     printf(CYAN"[KASJER %d] Kończę.\n"RESET, getpid());
-    _exit(0); // Bezpieczne zakończenie procesu potomnego
+    _exit(0);
 }
 
 pid_t stworz_kasjera()

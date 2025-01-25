@@ -1,6 +1,7 @@
 #include "sternik.h"
 #include "utils/fifo.h"
 #include "utils/interfejs.h"
+#include "utils/pamiec_wspoldzielona.h"
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <unistd.h>
@@ -33,9 +34,16 @@ void logika_sternika(int lodz)
     char fifo_str[20];
     snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", lodz);
     stworz_fifo(fifo_str);
+    dane_wspolne_t* dw = dolacz_pamiec_wspoldzielona(key);
 
-    while(1)
+    int stop = 0;
+    while(stop == 0)
     {
+        if (dw->jest_koniec == 1) {
+            printf(MAGENTA"[STERNIK %d] Jest koniec.\n"RESET, getpid());
+            stop = 1;
+            break;
+        }
         /*
             Setup sternika gdzie w pętli:
             1. Sprawcza czy nie minął czas rejsów i czy policja nie zatrzymała statku
@@ -49,22 +57,32 @@ void logika_sternika(int lodz)
         // tu będzie wpuszczać pasażerów
 
         // Sternik sprawdza ostatnią wiadomość
+        int ilosc_vip = pobierz_liczbe_pasazerow(dw, lodz == 1 ? KOLEJKA_1_VIP : KOLEJKA_2_VIP);
+        int ilosc_normalna = pobierz_liczbe_pasazerow(dw, lodz == 1 ? KOLEJKA_1_NORMALNA : KOLEJKA_2_NORMALNA);
+        if (ilosc_vip == 0 && ilosc_normalna == 0) {
+            sleep(3);
+            continue;
+        }
+        printf(MAGENTA"[STERNIK %d] Przeszedłem dalej.\n"RESET, getpid());
+
         char osobisty_fifo_str[25];
         odczytaj_wiadomosc_z_fifo(fifo_str, osobisty_fifo_str, sizeof osobisty_fifo_str);
+        printf(MAGENTA"[STERNIK %d] Odczytałem wiadomość.\n"RESET, getpid());
 
         // Sternik wysyła wiadomość do pasażera
         wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WPUSZCZONY");
+        printf(MAGENTA"[STERNIK %d] Wpuściłem pasażera.\n"RESET, getpid());
 
         // Sternik czeka na odpowiedź
         char odpowiedz[20];
         odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, odpowiedz, sizeof odpowiedz);
+        printf(MAGENTA"[STERNIK %d] Odnotowane.\n"RESET, getpid());
 
         // tu będzie wyruszać w rejs
 
         // tu będzie wypuszczać pasażerów
-
-        break;
     }
+    sleep(2);
     usun_fifo(fifo_str);
 
     printf(MAGENTA"[STERNIK %d] Kończę.\n"RESET, getpid());

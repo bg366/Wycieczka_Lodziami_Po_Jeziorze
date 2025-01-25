@@ -1,6 +1,8 @@
 #ifndef PAMIEC_WSPOLNA_H
 #define PAMIEC_WSPOLNA_H
 
+#define FTOK_PATH "/tmp"
+
 #include <sys/_types/_key_t.h>
 #include <sys/_types/_pid_t.h>
 #include <sys/ipc.h>
@@ -33,6 +35,8 @@ typedef struct {
     pthread_mutex_t mutex_kolejka_2_vip;
     pthread_mutex_t mutex_lodz_1;
     pthread_mutex_t mutex_lodz_2;
+
+    int jest_koniec;
 } dane_wspolne_t;
 
 /*
@@ -49,6 +53,8 @@ typedef enum {
 } identyfikator_kolejki_t;
 
 int stworz_pamiec_wspoldzielona(key_t klucz);
+
+dane_wspolne_t* odbierz_dane_wspolne(int shmid);
 
 dane_wspolne_t* dolacz_pamiec_wspoldzielona(key_t klucz);
 

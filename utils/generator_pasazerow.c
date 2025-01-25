@@ -99,7 +99,6 @@ int zatrzymaj_generator_pasazerow(pid_t generatorPid)
         perror("waitpid(generatorPid)");
         return -1;
     }
-    printf(YELLOW "[GENERATOR_PASAZEROW PID=%d] Zakończył działanie.\n" RESET, generatorPid);
 
     return 0;
 }

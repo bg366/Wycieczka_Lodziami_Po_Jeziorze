@@ -12,7 +12,6 @@ typedef struct msg_request {
     int   cashier_id;   // który kasjer
 } msg_request_t;
 
-
 typedef struct {
     long mtype;
     pid_t pid;
@@ -34,12 +33,12 @@ void usun_kolejke(key_t klucz);
 
 int polacz_kolejke(key_t klucz);
 
-void poinformuj_kasjera(int msgid, Pasazer *dane);
+int poinformuj_kasjera(int msgid, Pasazer *dane);
 
-void poinformuj_pasazera(int msgid, OdpowiedzKasjera *odpowiedz);
+int poinformuj_pasazera(int msgid, OdpowiedzKasjera *odpowiedz);
 
-void odbierz_wiadomosc_kasjera(int msgid, OdpowiedzKasjera *dane);
+int odbierz_wiadomosc_kasjera(int msgid, OdpowiedzKasjera *dane);
 
-void odbierz_wiadomosc_pasazera(int msgid, WiadomoscPasazera *wiadomosc);
+int odbierz_wiadomosc_pasazera(int msgid, WiadomoscPasazera *wiadomosc);
 
 #endif

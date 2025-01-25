@@ -37,7 +37,7 @@ int polacz_kolejke(key_t klucz)
     return msgid;
 }
 
-void poinformuj_kasjera(int msgid, Pasazer *dane)
+int poinformuj_kasjera(int msgid, Pasazer *dane)
 {
     WiadomoscPasazera wiadomosc;
     wiadomosc.mtype = 1;
@@ -51,55 +51,66 @@ void poinformuj_kasjera(int msgid, Pasazer *dane)
     // Wysłanie zgłoszenia do kasjera
     if (msgsnd(msgid, &wiadomosc, sizeof(WiadomoscPasazera) - sizeof(long), 0) == -1)
     {
-        perror("msgsnd");
-        printf("🚨 Nie udało się wysłać wiadomości (PID: %d)\n", getpid());
-
         if (errno == EIDRM) {
             printf("❌ Kolejka komunikatów została usunięta!\n");
+            return -1;
         } else if (errno == EINVAL) {
             printf("❌ Niepoprawny `msgid` lub zbyt duża wiadomość.\n");
+            return -1;
         } else if (errno == EAGAIN) {
             printf("❌ Kolejka pełna! Kasjer nie odebrał wcześniejszych wiadomości.\n");
+            return 0;
         }
-
         exit(EXIT_FAILURE);
     }
+    return 1;
 }
 
-void poinformuj_pasazera(int msgid, OdpowiedzKasjera *odpowiedz)
+int poinformuj_pasazera(int msgid, OdpowiedzKasjera *odpowiedz)
 {
     if (msgsnd(msgid, odpowiedz, sizeof(OdpowiedzKasjera) - sizeof(long), 0) == -1)
     {
-        perror("msgsnd");
+        if (errno == EIDRM) {
+            printf("❌ Kolejka komunikatów została usunięta!\n");
+            return -1;
+        } else if (errno == EINVAL) {
+            printf("❌ Niepoprawny `msgid` lub zbyt duża wiadomość.\n");
+            return -1;
+        } else if (errno == EAGAIN) {
+            printf("❌ Kolejka pełna! Kasjer nie odebrał wcześniejszych wiadomości.\n");
+            return 0;
+        }
         exit(EXIT_FAILURE);
     }
+    return 1;
 }
 
-void odbierz_wiadomosc_kasjera(int msgid, OdpowiedzKasjera *dane)
+int odbierz_wiadomosc_kasjera(int msgid, OdpowiedzKasjera *dane)
 {
-    if (msgrcv(msgid, dane, sizeof(OdpowiedzKasjera) - sizeof(long), getpid(), 0) == -1)
+    if (msgrcv(msgid, dane, sizeof(OdpowiedzKasjera) - sizeof(long), getpid(), IPC_NOWAIT) == -1)
     {
         if (errno == ENOMSG) {
-            printf("📭 Brak kasjera\n");
-            exit(EXIT_SUCCESS);
+            return 0;
         } else {
             perror("msgrcv");
             exit(EXIT_FAILURE);
+            return -1;
         }
     }
+    return 1;
 }
 
-void odbierz_wiadomosc_pasazera(int msgid, WiadomoscPasazera *wiadomosc)
+int odbierz_wiadomosc_pasazera(int msgid, WiadomoscPasazera *wiadomosc)
 {
-    printf("odbierz_wiadomosc_pasazera %d\n", msgid);
-    if (msgrcv(msgid, wiadomosc, sizeof(WiadomoscPasazera) - sizeof(long), 1, 0) == -1)
+    if (msgrcv(msgid, wiadomosc, sizeof(WiadomoscPasazera) - sizeof(long), 1, IPC_NOWAIT) == -1)
     {
         if (errno == ENOMSG) {
-            printf("📭 Brak wiadomości\n");
-            return;
+            return 0;
         } else {
             perror("msgrcv");
             exit(EXIT_FAILURE);
+            return -1;
         }
     }
+    return 1;
 }

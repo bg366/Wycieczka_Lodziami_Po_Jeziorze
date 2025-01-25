@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <sys/_pthread/_pthread_t.h>
+#include <sys/_types/_pid_t.h>
 #include <sys/ipc.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -28,7 +29,7 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
 
     printf(GREEN"[PASAZER %d] Rozpoczynam logikę pasażera...\n"RESET, getpid());
 
-    key_t key = ftok("/tmp", 'K');
+    key_t key = ftok(FTOK_PATH, 'K');
     if (key == -1)
     {
         perror("ftok");
@@ -49,25 +50,32 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
         printf(GREEN"[PASAZER %d] Wpuszczono mnie na rejs\n"RESET, getpid());
 
         dane_wspolne_t *dw = dolacz_pamiec_wspoldzielona(key);
+        identyfikator_kolejki_t kolejka;
         if (dane->preferowana_lodz == 1) {
-            dodaj_pasazera(dw, dane->powtarza_wycieczke ? KOLEJKA_1_VIP : KOLEJKA_1_NORMALNA, getpid());
+            kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_1_VIP : KOLEJKA_1_NORMALNA;
+            dodaj_pasazera(dw, kolejka, getpid());
         } else {
-            dodaj_pasazera(dw, dane->powtarza_wycieczke ? KOLEJKA_2_VIP : KOLEJKA_2_NORMALNA, getpid());
+            kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_2_VIP : KOLEJKA_2_NORMALNA;
+            dodaj_pasazera(dw, kolejka, getpid());
         }
 
         // Pasażer tworzy osobistą listę fifo
         char osobisty_fifo_str[25];
-        snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", dane->preferowana_lodz);
+        snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", getpid());
         stworz_fifo(osobisty_fifo_str);
 
         // Pasażer wysyła swój pid do sternika
         char fifo_str[20];
         snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", dane->preferowana_lodz);
         wyslij_wiadomosc_do_fifo(fifo_str, osobisty_fifo_str);
+        printf(GREEN"[PASAZER %d] Wysyłam PID sternikowi.\n"RESET, getpid());
 
         // Pasażer czeka na wpuszczenie na statek
         char wiadomosc[20];
         odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof fifo_str);
+        printf(GREEN"[PASAZER %d] Wchodzę na łódź.\n"RESET, getpid());
+        pid_t pid = getpid();
+        zdejmij_pasazera(dw, kolejka, &pid);
 
         wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WSZEDLEM");
 

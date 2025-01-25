@@ -41,9 +41,18 @@ int stworz_pamiec_wspoldzielona(key_t klucz) {
     int shmid = shmget(klucz, rozmiar, IPC_CREAT | 0666);
     if (shmid < 0) {
         perror("shmget");
-        return -1;
     }
+
     return shmid;
+}
+
+dane_wspolne_t* odbierz_dane_wspolne(int shmid) {
+    void *addr = shmat(shmid, NULL, 0);
+    if (addr == (void*)-1) {
+        perror("shmat");
+        return NULL;
+    }
+    return (dane_wspolne_t*)addr;
 }
 
 dane_wspolne_t* dolacz_pamiec_wspoldzielona(key_t klucz) {
@@ -72,6 +81,7 @@ int inicjuj_dane_wspolne(dane_wspolne_t *dw) {
     inicjuj_kolejke_fifo(&dw->kolejka_2_vip);
     inicjuj_kolejke_fifo(&dw->lodz_1);
     inicjuj_kolejke_fifo(&dw->lodz_2);
+    dw->jest_koniec = 0;
 
     /* Inicjalizacja mutexów między-procesowych */
     pthread_mutexattr_t attr;
