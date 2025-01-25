@@ -1,4 +1,5 @@
 #include "generator_pasazerow.h"
+#include "interfejs.h"
 #include "../pasazer.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,7 +32,7 @@ static void generuj_pasazerow()
 {
     srand(time(NULL) ^ (getpid()<<16));
 
-    printf("[GENERATOR_PASAZEROW %d] Start generatora pasażerów.\n", getpid());
+    printf(YELLOW "[GENERATOR_PASAZEROW %d] Start generatora pasażerów.\n" RESET, getpid());
 
     while (!stopFlag)
     {
@@ -39,7 +40,7 @@ static void generuj_pasazerow()
         pid_t p = stworz_pasazera();
         if (p > 0)
         {
-            printf("[GENERATOR_PASAZEROW %d] Utworzono pasażera PID=%d\n", getpid(), p);
+            printf(YELLOW "[GENERATOR_PASAZEROW %d] Utworzono pasażera PID=%d\n" RESET, getpid(), p);
         }
 
         // Odczekaj losowy czas
@@ -47,7 +48,7 @@ static void generuj_pasazerow()
         sleep(sl);
     }
 
-    printf("[GENERATOR_PASAZEROW %d] Kończę pętlę generatora (otrzymano sygnał).\n", getpid());
+    printf(YELLOW "[GENERATOR_PASAZEROW %d] Kończę pętlę generatora (otrzymano sygnał).\n" RESET, getpid());
     _exit(0);
 }
 
@@ -98,7 +99,7 @@ int zatrzymaj_generator_pasazerow(pid_t generatorPid)
         perror("waitpid(generatorPid)");
         return -1;
     }
-    printf("[GENERATOR_PASAZEROW PID=%d] Zakończył działanie.\n", generatorPid);
+    printf(YELLOW "[GENERATOR_PASAZEROW PID=%d] Zakończył działanie.\n" RESET, generatorPid);
 
     return 0;
 }
