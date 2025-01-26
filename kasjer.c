@@ -1,6 +1,7 @@
 #include "kasjer.h"
 #include "utils/kolejka_kasy.h"
 #include "utils/interfejs.h"
+#include "utils/czas.h"
 #include "utils/pamiec_wspoldzielona.h"
 #include <stdio.h>
 #include <sys/ipc.h>
@@ -8,7 +9,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-void logika_kasjera()
+void logika_kasjera(struct tm *godzina_zamkniecia)
 {
     printf(CYAN"[KASJER %d] Rozpoczynam logikę kasjera...\n"RESET, getpid());
 
@@ -24,6 +25,11 @@ void logika_kasjera()
     int stop = 0;
     while(stop == 0)
     {
+        if (czy_minela_godzina(godzina_zamkniecia)) {
+            stop = 1;
+            break;
+        }
+
         WiadomoscPasazera wiadomosc;
         int wynik = odbierz_wiadomosc_pasazera(msgid, &wiadomosc);
         if (wynik != 1) {
@@ -79,7 +85,7 @@ void logika_kasjera()
     _exit(0);
 }
 
-pid_t stworz_kasjera()
+pid_t stworz_kasjera(struct tm *godzina_zamkniecia)
 {
     pid_t pid = fork();
     if (pid < 0)
@@ -90,7 +96,7 @@ pid_t stworz_kasjera()
     if (pid == 0)
     {
         // Proces potomny
-        logika_kasjera();
+        logika_kasjera(godzina_zamkniecia);
         // Nie powinno się tu dotrzeć, bo logika_kasjera kończy proces
         _exit(0);
     }

@@ -8,17 +8,19 @@
 #include "utils/kolejka_kasy.h"
 #include "utils/pamiec_wspoldzielona.h"
 #include "utils/semafor.h"
+#include "utils/czas.h"
 #include "utils/sygnaly.h"
 
 int main()
 {
-    int N1 = 5, N2 = 2, K = 2;
+    int N1 = 5, N2 = 2, K = 2, T = 10;
     // Inicjalizacja IPC
     key_t key = ftok(FTOK_PATH, 'K');
     if (key == -1) {
         perror("ftok");
         return 1;
     }
+    struct tm godzina = oblicz_godzine(T);
     int shmid = stworz_pamiec_wspoldzielona(key);
     dane_wspolne_t *dw = odbierz_dane_wspolne(shmid);
     inicjuj_dane_wspolne(dw);
@@ -26,16 +28,14 @@ int main()
     stworz_kolejke(key);
 
     // Procesy
-    stworz_kasjera();
+    stworz_kasjera(&godzina);
     for (int i = 1; i <= 2; i++) {
-        stworz_sternika(i, K, i == 1 ? N1 : N2);
+        stworz_sternika(i, K, i == 1 ? N1 : N2, &godzina);
     }
-    pid_t generator = stworz_generator_pasazerow();
-    sleep(6);
+    pid_t generator = stworz_generator_pasazerow(&godzina);
 
     // Clean-up
-    zatrzymaj_generator_pasazerow(generator);
-    sleep(10);
+    sleep(30);
     dw->jest_koniec = 1;
     printf("Ustawiłem dw, %d\n", dw->jest_koniec);
     sleep(10);

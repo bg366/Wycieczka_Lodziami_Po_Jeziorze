@@ -20,7 +20,7 @@ static pid_t wyciagnij_pid(const char *path) {
     return (pid_t)atoi(podkreslenie + 1); // Konwertuje część po '_'
 }
 
-void logika_sternika(int lodz, int max_pomostu, int max_lodzi)
+void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzina_zamkniecia)
 {
     printf(MAGENTA"[STERNIK %d] Rozpoczynam logikę sternika...\n"RESET, getpid());
 
@@ -47,6 +47,9 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi)
     int stop = 0;
     while(stop == 0)
     {
+        if (etap < 2 && czy_minela_godzina(godzina_zamkniecia)) {
+            etap = 3;
+        }
         if (dw->jest_koniec == 1) {
             stop = 1;
             break;
@@ -115,7 +118,11 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi)
 
                 kill(usuniety, SIGUSR1);
             }
-            break;
+            if (czy_minela_godzina(godzina_zamkniecia)) {
+                break;
+            } else {
+                etap = 1;
+            }
         }
     }
     usun_fifo(fifo_str);
@@ -126,7 +133,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi)
     _exit(0); // Bezpieczne zakończenie procesu potomnego
 }
 
-pid_t stworz_sternika(int lodz, int max_pomostu, int max_lodzi)
+pid_t stworz_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzina_zamkniecia)
 {
     pid_t pid = fork();
     if (pid < 0)
@@ -137,7 +144,7 @@ pid_t stworz_sternika(int lodz, int max_pomostu, int max_lodzi)
     if (pid == 0)
     {
         // Proces potomny
-        logika_sternika(lodz, max_pomostu, max_lodzi);
+        logika_sternika(lodz, max_pomostu, max_lodzi, godzina_zamkniecia);
         // Nie powinno się tu dotrzeć, bo logika_sternika kończy proces
         _exit(0);
     }

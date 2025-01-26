@@ -28,7 +28,7 @@ static void sigHandler(int signo)
 }
 
 /* Kod wykonywany przez proces generatora: w pętli tworzy pasażerów w losowych odstępach czasu, aż do otrzymania sygnału. */
-static void generuj_pasazerow()
+static void generuj_pasazerow(struct tm *godzina_zamkniecia)
 {
     srand(time(NULL) ^ (getpid()<<16));
 
@@ -36,6 +36,11 @@ static void generuj_pasazerow()
 
     while (!stopFlag)
     {
+        if (czy_minela_godzina(godzina_zamkniecia)) {
+            printf(YELLOW "[GENERATOR_PASAZEROW %d] Minęła godzina. \n" RESET, getpid());
+            break;
+        }
+
         // Stwórz pasażera
         pid_t p = stworz_pasazera();
         if (p > 0)
@@ -53,7 +58,7 @@ static void generuj_pasazerow()
 }
 
 /* Uruchamia nowy proces – generator pasażerów */
-pid_t stworz_generator_pasazerow()
+pid_t stworz_generator_pasazerow(struct tm *godzina_zamkniecia)
 {
     pid_t pid = fork();
     if (pid < 0)
@@ -67,7 +72,7 @@ pid_t stworz_generator_pasazerow()
         // Obsługa sygnału do zakończenia
         signal(SIGTERM, sigHandler);
 
-        generuj_pasazerow();
+        generuj_pasazerow(godzina_zamkniecia);
 
         _exit(0);
     }
