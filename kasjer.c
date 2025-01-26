@@ -10,10 +10,6 @@
 
 void logika_kasjera()
 {
-    /*
-     * Logika kasjera
-     */
-
     printf(CYAN"[KASJER %d] Rozpoczynam logikę kasjera...\n"RESET, getpid());
 
     key_t key = ftok(FTOK_PATH, 'K');
@@ -79,9 +75,6 @@ void logika_kasjera()
         }
         printf(CYAN"[KASJER %d] Obsłużyłem pasażera %d.\n"RESET, getpid(), wiadomosc.pid);
     }
-    printf(CYAN"[KASJER %d] Przerywam prace\n"RESET, getpid());
-
-    sleep(1);
     printf(CYAN"[KASJER %d] Kończę.\n"RESET, getpid());
     _exit(0);
 }

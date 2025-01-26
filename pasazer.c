@@ -19,6 +19,13 @@ static int losowa_liczba(int a, int b) {
     return a + rand() % (b - a + 1);  // Ensures range [a, b]
 }
 
+static volatile sig_atomic_t flaga_zejscia = 0;
+static void sig_handler(int signo)
+{
+    (void)signo; // ignoruj param
+    flaga_zejscia = 1;
+}
+
 void logika_pasazera(Pasazer *dane, pthread_t dziecko)
 {
     /*
@@ -28,7 +35,6 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
      *  - Wejście na pomost (semafor)
      *  - Wejście na łódź, rejs, wyjście z łodzi, itp.
      */
-
     printf(GREEN"[PASAZER %d] Rozpoczynam logikę pasażera...\n"RESET, getpid());
 
     key_t key = ftok(FTOK_PATH, 'K');
@@ -38,85 +44,117 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
     }
     int msgid = polacz_kolejke(key);
     int semid = podlacz_semafor(key);
+    dane_wspolne_t *dw = dolacz_pamiec_wspoldzielona(key);
+
+    int id_pomostu = dane->preferowana_lodz == 1 ? SEM_POMOST_1 : SEM_POMOST_2;
+    int id_lodzi = dane->preferowana_lodz == 1 ? SEM_LODZ_1 : SEM_LODZ_2;
+    identyfikator_kolejki_t kolejka;
+    identyfikator_kolejki_t lodz;
+    pid_t pid = getpid();
+    if (dane->preferowana_lodz == 1) {
+        kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_1_VIP : KOLEJKA_1_NORMALNA;
+        lodz = LODZ_1;
+    } else {
+        kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_2_VIP : KOLEJKA_2_NORMALNA;
+        lodz = LODZ_2;
+    }
 
     poinformuj_kasjera(msgid, dane);
+
+    int etap = 1;
     while(1)
     {
-        int wynik = 0;
-        OdpowiedzKasjera odpowiedz;
-        while (wynik == 0) {
-            sleep(2);
-            wynik = odbierz_wiadomosc_kasjera(msgid, &odpowiedz);
+        if (etap == 1) {
+            int wynik = 0;
+            OdpowiedzKasjera odpowiedz;
+            while (wynik == 0) {
+                sleep(2);
+                wynik = odbierz_wiadomosc_kasjera(msgid, &odpowiedz);
+            }
+
+            if (odpowiedz.decyzja == 0) {
+                printf(GREEN"[PASAZER %d] Nie wpuszczono mnie na rejs\n"RESET, getpid());
+                break;
+            }
+
+            printf(GREEN"[PASAZER %d] Wpuszczono mnie na rejs\n"RESET, getpid());
+            etap = 2;
         }
 
-        if (odpowiedz.decyzja == 0) {
-            printf(GREEN"[PASAZER %d] Nie wpuszczono mnie na rejs\n"RESET, getpid());
-            break;
-        }
-
-        printf(GREEN"[PASAZER %d] Wpuszczono mnie na rejs\n"RESET, getpid());
-
-        dane_wspolne_t *dw = dolacz_pamiec_wspoldzielona(key);
-        identyfikator_kolejki_t kolejka;
-        identyfikator_kolejki_t lodz;
-        pid_t pid = getpid();
-        if (dane->preferowana_lodz == 1) {
-            kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_1_VIP : KOLEJKA_1_NORMALNA;
-            lodz = LODZ_1;
+        if (etap == 2) {
             dodaj_pasazera(dw, kolejka, pid);
-        } else {
-            kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_2_VIP : KOLEJKA_2_NORMALNA;
-            lodz = LODZ_2;
-            dodaj_pasazera(dw, kolejka, pid);
+
+            // Pasażer tworzy osobistą listę fifo
+            char osobisty_fifo_str[25];
+            snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", getpid());
+            stworz_fifo(osobisty_fifo_str);
+
+            // Pasażer wysyła swój pid do sternika
+            char fifo_str[20];
+            snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", dane->preferowana_lodz);
+            printf(GREEN"[PASAZER %d] Wysyłam PID sternikowi. %d %d\n"RESET, getpid(), dane->ma_dzieci, dane->preferowana_lodz);
+            wyslij_wiadomosc_do_fifo(fifo_str, osobisty_fifo_str);
+
+            // Pasażer czeka na wpuszczenie na statek
+            char wiadomosc[20];
+            printf(GREEN"[PASAZER %d] Wchodzę na łódź.\n"RESET, getpid());
+            odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof fifo_str);
+
+            // Wejście na łódź
+            opusc_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? -2 : -1);
+            zdejmij_pasazera(dw, kolejka, &pid);
+            // printf(GREEN"[PASAZER %d] Wszedłem na pomost%d.\n"RESET, getpid(), dane->preferowana_lodz);
+            wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WSZEDLEM");
+
+            // Wchodzenie przez pomost
+            // printf(GREEN"[PASAZER %d] Czekam na semafor%d.\n"RESET, getpid(), dane->preferowana_lodz);
+
+            // Wejście na łódź
+            opusc_semafor(semid, id_lodzi, dane->ma_dzieci == 1 ? -2 : -1);
+            podnies_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? 2 : 1);
+            // printf(GREEN"[PASAZER %d] Czekam na pamiec%d.\n"RESET, getpid(), dane->preferowana_lodz);
+            dodaj_pasazera(dw, lodz, pid);
+            printf(GREEN"[PASAZER %d] Jestem na łodzi %d.\n"RESET, getpid(), dane->preferowana_lodz);
+
+            usun_fifo(osobisty_fifo_str);
+
+            etap = 3;
         }
 
-        // Pasażer tworzy osobistą listę fifo
-        char osobisty_fifo_str[25];
-        snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", getpid());
-        stworz_fifo(osobisty_fifo_str);
+        if (etap == 3) {
+            if (flaga_zejscia != 1) {
+                continue;
+            }
+            printf(GREEN"[PASAZER %d] Schodzę z łodzi.\n"RESET, getpid());
+            // logika schodzenia ze statku
+            opusc_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? -2 : -1);
+            podnies_semafor(semid, id_lodzi, dane->ma_dzieci == 1 ? 2 : 1);
+            zdejmij_pasazera(dw, lodz, &pid);
 
-        // Pasażer wysyła swój pid do sternika
-        char fifo_str[20];
-        snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", dane->preferowana_lodz);
-        printf(GREEN"[PASAZER %d] Wysyłam PID sternikowi. %d %d\n"RESET, getpid(), dane->ma_dzieci, dane->preferowana_lodz);
-        wyslij_wiadomosc_do_fifo(fifo_str, osobisty_fifo_str);
+            sleep(5); // symulacja przechodzenia przez pomost
 
-        // Pasażer czeka na wpuszczenie na statek
-        char wiadomosc[20];
-        printf(GREEN"[PASAZER %d] Wchodzę na łódź.\n"RESET, getpid());
-        odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof fifo_str);
+            podnies_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? 2 : 1);
+            printf(GREEN"[PASAZER %d] Zszedłem z pomostu.\n"RESET, getpid());
 
-        // Wejście na łódź
-        int id_pomostu = dane->preferowana_lodz == 1 ? SEM_POMOST_1 : SEM_POMOST_2;
-        int id_lodzi = dane->preferowana_lodz == 1 ? SEM_LODZ_1 : SEM_LODZ_2;
-        opusc_semafor(semid, id_pomostu);
-        if (dane->ma_dzieci == 1) {
-            opusc_semafor(semid, id_pomostu);
+            etap = 4;
         }
-        zdejmij_pasazera(dw, kolejka, &pid);
-        // printf(GREEN"[PASAZER %d] Wszedłem na pomost%d.\n"RESET, getpid(), dane->preferowana_lodz);
-        wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WSZEDLEM");
 
-        // Wchodzenie przez pomost
-        // printf(GREEN"[PASAZER %d] Czekam na semafor%d.\n"RESET, getpid(), dane->preferowana_lodz);
-
-        // Wejście na łódź
-        opusc_semafor(semid, id_lodzi);
-        podnies_semafor(semid, id_pomostu);
-        if (dane->ma_dzieci == 1) {
-            opusc_semafor(semid, id_lodzi);
-            podnies_semafor(semid, id_pomostu);
+        // logika decydowania czy chce powtorzyc podroz
+        if (etap == 4) {
+            if (losowa_liczba(1, 100) > 50 ? 1 : 0) {
+                dane->powtarza_wycieczke = 1;
+                dane->preferowana_lodz = losowa_liczba(1, 2);
+                flaga_zejscia = 0;
+                etap = 1;
+                continue;
+            } else {
+                break;
+            }
         }
-        // printf(GREEN"[PASAZER %d] Czekam na pamiec%d.\n"RESET, getpid(), dane->preferowana_lodz);
-        dodaj_pasazera(dw, lodz, pid);
-        printf(GREEN"[PASAZER %d] Jestem na łodzi %d.\n"RESET, getpid(), dane->preferowana_lodz);
-
-        usun_fifo(osobisty_fifo_str);
 
         break;
     }
 
-    sleep(1); // Symulacja krótkiej pracy
     printf(GREEN"[PASAZER %d] Kończę.\n"RESET, getpid());
     _exit(0); // Bezpieczne zakończenie procesu potomnego
 }
@@ -180,6 +218,7 @@ pid_t stworz_pasazera()
     }
     if (pid == 0)
     {
+        signal(SIGUSR1, sig_handler);
         Pasazer dane;
         generuj_dane(&dane);
 

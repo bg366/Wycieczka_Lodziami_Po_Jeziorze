@@ -19,8 +19,8 @@ int usun_semafor(int semid);
 
 int pobierz_wartosc_semafor(int semid, identyfikator_semaforu_t semafor);
 
-int opusc_semafor(int semid, identyfikator_semaforu_t semafor);
+int opusc_semafor(int semid, identyfikator_semaforu_t semafor, short ilosc);
 
-int podnies_semafor(int semid, identyfikator_semaforu_t semafor);
+int podnies_semafor(int semid, identyfikator_semaforu_t semafor, short ilosc);
 
 #endif

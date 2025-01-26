@@ -12,7 +12,7 @@
 
 int main()
 {
-    int N1 = 2, N2 = 2, K = 2;
+    int N1 = 5, N2 = 2, K = 2;
     // Inicjalizacja IPC
     key_t key = ftok(FTOK_PATH, 'K');
     if (key == -1) {
@@ -31,7 +31,7 @@ int main()
         stworz_sternika(i, K, i == 1 ? N1 : N2);
     }
     pid_t generator = stworz_generator_pasazerow();
-    sleep(20);
+    sleep(6);
 
     // Clean-up
     zatrzymaj_generator_pasazerow(generator);

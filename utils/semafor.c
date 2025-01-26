@@ -81,13 +81,13 @@ int pobierz_wartosc_semafor(int semid, identyfikator_semaforu_t semafor)
     return val;
 }
 
-int opusc_semafor(int semid, identyfikator_semaforu_t semafor)
+int opusc_semafor(int semid, identyfikator_semaforu_t semafor, short ilosc)
 {
     if (semid < 0) return -1;
 
     struct sembuf sb;
     sb.sem_num = semafor;
-    sb.sem_op = -1;   /* P: opuszczenie = decrement o 1 */
+    sb.sem_op = ilosc;   /* P: opuszczenie = decrement o 1 */
     sb.sem_flg = 0;   /* brak IPC_NOWAIT – jeśli 0, czekamy */
 
     if (semop(semid, &sb, 1) == -1) {
@@ -100,13 +100,13 @@ int opusc_semafor(int semid, identyfikator_semaforu_t semafor)
     return 0;
 }
 
-int podnies_semafor(int semid, identyfikator_semaforu_t semafor)
+int podnies_semafor(int semid, identyfikator_semaforu_t semafor, short ilosc)
 {
     if (semid < 0) return -1;
 
     struct sembuf sb;
     sb.sem_num = semafor;
-    sb.sem_op = +1;   /* V: increment o 1 */
+    sb.sem_op = ilosc;   /* V: increment o 1 */
     sb.sem_flg = 0;
 
     if (semop(semid, &sb, 1) == -1) {
