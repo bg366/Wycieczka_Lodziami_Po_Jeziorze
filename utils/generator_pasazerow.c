@@ -20,11 +20,18 @@ static int losowy_okres_czasu(int min, int max)
 }
 
 /* Funkcja do obsługi sygnału – przerwanie pętli w generatorze */
-static volatile sig_atomic_t stopFlag = 0;
-static void sigHandler(int signo)
+static volatile sig_atomic_t stop_flaga = 0;
+static void sig_handler(int signo)
 {
     (void)signo; // ignoruj param
-    stopFlag = 1;
+    stop_flaga = 1;
+}
+
+static volatile sig_atomic_t zatrzymane_lodzie_flaga = 0;
+static void sig_handler_lodzie(int signo)
+{
+    (void)signo; // ignoruj param
+    zatrzymane_lodzie_flaga++;
 }
 
 /* Kod wykonywany przez proces generatora: w pętli tworzy pasażerów w losowych odstępach czasu, aż do otrzymania sygnału. */
@@ -34,7 +41,7 @@ static void generuj_pasazerow(struct tm *godzina_zamkniecia)
 
     printf(YELLOW "[GENERATOR_PASAZEROW %d] Start generatora pasażerów.\n" RESET, getpid());
 
-    while (!stopFlag)
+    while (!stop_flaga && zatrzymane_lodzie_flaga != 2)
     {
         if (czy_minela_godzina(godzina_zamkniecia)) {
             printf(YELLOW "[GENERATOR_PASAZEROW %d] Minęła godzina. \n" RESET, getpid());
@@ -54,7 +61,6 @@ static void generuj_pasazerow(struct tm *godzina_zamkniecia)
     }
 
     printf(YELLOW "[GENERATOR_PASAZEROW %d] Kończę pętlę generatora (otrzymano sygnał).\n" RESET, getpid());
-    _exit(0);
 }
 
 /* Uruchamia nowy proces – generator pasażerów */
@@ -70,9 +76,18 @@ pid_t stworz_generator_pasazerow(struct tm *godzina_zamkniecia)
     {
         // Proces potomny
         // Obsługa sygnału do zakończenia
-        signal(SIGTERM, sigHandler);
+        signal(SIGTERM, sig_handler);
+        signal(SIGUSR1, sig_handler_lodzie);
+        signal(SIGUSR2, sig_handler_lodzie);
 
         generuj_pasazerow(godzina_zamkniecia);
+
+        pid_t pid;
+        while ((pid = wait(NULL)) > 0) {
+            // printf("Child %d exited.\n", pid);
+        }
+
+        printf(YELLOW "[GENERATOR_PASAZEROW %d] Exit\n" RESET, getpid());
 
         _exit(0);
     }

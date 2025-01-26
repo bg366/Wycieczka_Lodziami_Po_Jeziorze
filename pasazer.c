@@ -19,8 +19,15 @@ static int losowa_liczba(int a, int b) {
     return a + rand() % (b - a + 1);  // Ensures range [a, b]
 }
 
+static volatile sig_atomic_t flaga_zamkniecia_lodzi = 0;
+static void sig_handler_lodz(int signo)
+{
+    (void)signo; // ignoruj param
+    flaga_zamkniecia_lodzi = 1;
+}
+
 static volatile sig_atomic_t flaga_zejscia = 0;
-static void sig_handler(int signo)
+static void sig_handler_term(int signo)
 {
     (void)signo; // ignoruj param
     flaga_zejscia = 1;
@@ -59,17 +66,29 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
         lodz = LODZ_2;
     }
 
+    // Pasażer tworzy osobistą listę fifo
+    char osobisty_fifo_str[25];
+    snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", getpid());
+    stworz_fifo(osobisty_fifo_str);
+
     poinformuj_kasjera(msgid, dane);
 
     int etap = 1;
-    while(1)
+    while(etap != 0)
     {
         if (etap == 1) {
             int wynik = 0;
             OdpowiedzKasjera odpowiedz;
             while (wynik == 0) {
-                sleep(2);
+                if (flaga_zamkniecia_lodzi == 1) {
+                    etap = 0;
+                    break;
+                }
                 wynik = odbierz_wiadomosc_kasjera(msgid, &odpowiedz);
+            }
+
+            if (etap == 0) {
+                break;
             }
 
             if (odpowiedz.decyzja == 0) {
@@ -84,21 +103,36 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
         if (etap == 2) {
             dodaj_pasazera(dw, kolejka, pid);
 
-            // Pasażer tworzy osobistą listę fifo
-            char osobisty_fifo_str[25];
-            snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", getpid());
-            stworz_fifo(osobisty_fifo_str);
-
             // Pasażer wysyła swój pid do sternika
             char fifo_str[20];
             snprintf(fifo_str, sizeof(fifo_str), dane->powtarza_wycieczke == 1 ? "/tmp/lodz_v_%d" : "/tmp/lodz_%d", dane->preferowana_lodz);
             printf(GREEN"[PASAZER %d] Wysyłam PID sternikowi. %d %d\n"RESET, getpid(), dane->ma_dzieci, dane->preferowana_lodz);
-            wyslij_wiadomosc_do_fifo(fifo_str, osobisty_fifo_str);
+
+            if (flaga_zamkniecia_lodzi == 1) {
+                zdejmij_pasazera(dw, kolejka, &pid);
+                break;
+            }
+
+            int wynik = wyslij_wiadomosc_do_fifo(fifo_str, osobisty_fifo_str);
+            if (wynik != 0) {
+                if (flaga_zamkniecia_lodzi == 1) {
+                    zdejmij_pasazera(dw, kolejka, &pid);
+                    break;
+                }
+                continue;
+            }
 
             // Pasażer czeka na wpuszczenie na statek
             char wiadomosc[20];
             printf(GREEN"[PASAZER %d] Wchodzę na łódź.\n"RESET, getpid());
-            odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof fifo_str);
+            wynik = odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof fifo_str);
+            if (wynik != 0) {
+                if (flaga_zamkniecia_lodzi == 1) {
+                    zdejmij_pasazera(dw, kolejka, &pid);
+                    break;
+                }
+                continue;
+            }
 
             // Wejście na łódź
             opusc_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? -2 : -1);
@@ -116,12 +150,11 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
             dodaj_pasazera(dw, lodz, pid);
             printf(GREEN"[PASAZER %d] Jestem na łodzi %d.\n"RESET, getpid(), dane->preferowana_lodz);
 
-            usun_fifo(osobisty_fifo_str);
-
             etap = 3;
         }
 
         if (etap == 3) {
+            // TODO: czeka na zejscie od sternika, ale przychodzi sigusr
             if (flaga_zejscia != 1) {
                 continue;
             }
@@ -141,19 +174,22 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
 
         // logika decydowania czy chce powtorzyc podroz
         if (etap == 4) {
-            if (losowa_liczba(1, 100) > 50 ? 1 : 0) {
+            if (losowa_liczba(1, 100) > 50 ? 1 : 0 && flaga_zamkniecia_lodzi != 1) {
+                printf(GREEN"[PASAZER %d] Powtarzam wycieczkę\n"RESET, getpid());
                 dane->powtarza_wycieczke = 1;
                 dane->preferowana_lodz = losowa_liczba(1, 2);
                 flaga_zejscia = 0;
                 etap = 1;
                 continue;
             } else {
+                printf(GREEN"[PASAZER %d] Nie powtarzam wycieczki\n"RESET, getpid());
                 break;
             }
         }
 
         break;
     }
+    usun_fifo(osobisty_fifo_str);
 
     printf(GREEN"[PASAZER %d] Kończę.\n"RESET, getpid());
     _exit(0); // Bezpieczne zakończenie procesu potomnego
@@ -218,9 +254,11 @@ pid_t stworz_pasazera()
     }
     if (pid == 0)
     {
-        signal(SIGUSR1, sig_handler);
         Pasazer dane;
         generuj_dane(&dane);
+
+        signal(SIGTERM, sig_handler_term);
+        signal(dane.preferowana_lodz == 1 ? SIGUSR1 : SIGUSR2, sig_handler_lodz);
 
         pthread_t dziecko = NULL;
 

@@ -9,6 +9,20 @@
 #include <sys/wait.h>
 #include <signal.h>
 
+static volatile sig_atomic_t flaga_zamkniecia_lodzi_1 = 0;
+static void sig_handler_1(int signo)
+{
+    (void)signo; // ignoruj param
+    flaga_zamkniecia_lodzi_1 = 1;
+}
+
+static volatile sig_atomic_t flaga_zamkniecia_lodzi_2 = 0;
+static void sig_handler_2(int signo)
+{
+    (void)signo; // ignoruj param
+    flaga_zamkniecia_lodzi_2 = 1;
+}
+
 void logika_kasjera(struct tm *godzina_zamkniecia)
 {
     printf(CYAN"[KASJER %d] Rozpoczynam logikę kasjera...\n"RESET, getpid());
@@ -46,7 +60,7 @@ void logika_kasjera(struct tm *godzina_zamkniecia)
         // logika decyzji
         if (wiadomosc.preferowana_lodz == 2 || wiadomosc.powtarza_wycieczke == 1)
         {
-            odpowiedz.decyzja = 1;
+            odpowiedz.decyzja = flaga_zamkniecia_lodzi_2 == 0;
         }
         else
         {
@@ -56,7 +70,7 @@ void logika_kasjera(struct tm *godzina_zamkniecia)
             }
             else
             {
-                odpowiedz.decyzja = 1;
+                odpowiedz.decyzja = flaga_zamkniecia_lodzi_1 == 0;
             }
         }
 
@@ -95,6 +109,9 @@ pid_t stworz_kasjera(struct tm *godzina_zamkniecia)
     }
     if (pid == 0)
     {
+        signal(SIGUSR1, sig_handler_1);
+        signal(SIGUSR2, sig_handler_2);
+
         // Proces potomny
         logika_kasjera(godzina_zamkniecia);
         // Nie powinno się tu dotrzeć, bo logika_kasjera kończy proces

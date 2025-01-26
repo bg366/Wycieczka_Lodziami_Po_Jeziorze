@@ -72,8 +72,7 @@ int pobierz_wartosc_semafor(int semid, identyfikator_semaforu_t semafor)
 {
     if (semid < 0) return -1;
 
-    union semun arg;
-    int val = semctl(semid, semafor, GETVAL, arg);
+    int val = semctl(semid, semafor, GETVAL, 0);
     if (val == -1) {
         perror("semctl(GETVAL)");
         return -1;

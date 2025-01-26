@@ -17,7 +17,6 @@ int stworz_fifo(const char *sciezka_fifo) {
 int wyslij_wiadomosc_do_fifo(const char *sciezka_fifo, char *str) {
     int deskryptor_fifo = open(sciezka_fifo, O_WRONLY);
     if (deskryptor_fifo == -1) {
-        perror("Błąd otwierania FIFO do zapisu");
         return -1;
     }
 
@@ -34,7 +33,6 @@ int wyslij_wiadomosc_do_fifo(const char *sciezka_fifo, char *str) {
 int odczytaj_wiadomosc_z_fifo(const char *sciezka_fifo, char *bufor, size_t rozmiar_bufora) {
     int deskryptor_fifo = open(sciezka_fifo, O_RDONLY);
     if (deskryptor_fifo == -1) {
-        perror("Błąd otwierania FIFO do odczytu");
         return -1;
     }
 
