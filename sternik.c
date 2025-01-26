@@ -30,8 +30,11 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi)
         perror("ftok");
     }
     char fifo_str[20];
+    char fifo_vip_str[20];
     snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", lodz);
+    snprintf(fifo_vip_str, sizeof(fifo_str), "/tmp/lodz_v_%d", lodz);
     stworz_fifo(fifo_str);
+    stworz_fifo(fifo_vip_str);
     dane_wspolne_t* dw = dolacz_pamiec_wspoldzielona(key);
     int semid = podlacz_semafor(key);
 
@@ -76,7 +79,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi)
 
                 // Sternik sprawdza ostatnią wiadomość
                 char osobisty_fifo_str[25];
-                odczytaj_wiadomosc_z_fifo(fifo_str, osobisty_fifo_str, sizeof osobisty_fifo_str);
+                odczytaj_wiadomosc_z_fifo(ilosc_vip > 0 ? fifo_vip_str : fifo_str, osobisty_fifo_str, sizeof osobisty_fifo_str);
                 // printf(MAGENTA"[STERNIK %d] Odczytałem wiadomość.\n"RESET, getpid());
                 printf("OSOBISTY STRING: \n%s\n", osobisty_fifo_str);
 

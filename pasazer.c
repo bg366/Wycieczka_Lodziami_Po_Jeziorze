@@ -91,7 +91,7 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
 
             // Pasażer wysyła swój pid do sternika
             char fifo_str[20];
-            snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", dane->preferowana_lodz);
+            snprintf(fifo_str, sizeof(fifo_str), dane->powtarza_wycieczke == 1 ? "/tmp/lodz_v_%d" : "/tmp/lodz_%d", dane->preferowana_lodz);
             printf(GREEN"[PASAZER %d] Wysyłam PID sternikowi. %d %d\n"RESET, getpid(), dane->ma_dzieci, dane->preferowana_lodz);
             wyslij_wiadomosc_do_fifo(fifo_str, osobisty_fifo_str);
 
