@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#define SZANSA_ZATRZYMANIA 100
+#define SZANSA_ZATRZYMANIA 10
 
 typedef struct {
     int numer_lodzi;

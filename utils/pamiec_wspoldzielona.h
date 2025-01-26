@@ -10,7 +10,7 @@
 #include <pthread.h>
 
 /* Stała określająca maksymalną liczbę pasażerów w jednej kolejce. */
-#define MAX_PASAZEROW 100
+#define MAX_PASAZEROW 20
 
 /* Struktura kolejki FIFO w pamięci współdzielonej. */
 typedef struct {

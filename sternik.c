@@ -61,6 +61,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
             }
         }
         if (czy_minela_godzina(godzina_zamkniecia)) {
+            printf(MAGENTA"[STERNIK %d] Minął czas podróży.\n"RESET, getpid());
             if (flaga_zejscia != 1) {
                 kill(0, lodz == 1 ? SIGUSR1 : SIGUSR2);
             }
@@ -73,6 +74,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
             stop = 1;
             break;
         }
+
         /*
             Setup sternika gdzie w pętli:
             1. Sprawcza czy nie minął czas rejsów i czy policja nie zatrzymała statku
@@ -88,16 +90,20 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
             int ilosc_vip = pobierz_liczbe_pasazerow(dw, lodz == 1 ? KOLEJKA_1_VIP : KOLEJKA_2_VIP);
             int ilosc_normalna = pobierz_liczbe_pasazerow(dw, lodz == 1 ? KOLEJKA_1_NORMALNA : KOLEJKA_2_NORMALNA);
             if (ilosc_vip == 0 && ilosc_normalna == 0) {
+                printf(MAGENTA"[STERNIK %d] Brak ludzi.\n"RESET, getpid());
+                sleep(3);
                 continue;
             }
 
             int miejsce_na_lodzi = pobierz_wartosc_semafor(semid, id_lodzi);
             int miejsce_na_pomoscie = pobierz_wartosc_semafor(semid, id_pomostu);
             if (miejsce_na_pomoscie == 0) {
+                printf(MAGENTA"[STERNIK %d] Brak miejsca.\n"RESET, getpid());
+                sleep(3);
                 continue;
             }
             if ((miejsce_na_lodzi - (max_pomostu - miejsce_na_pomoscie)) > 0) {
-                printf(MAGENTA"[STERNIK %d] Przeszedłem dalej.\n"RESET, getpid());
+                // printf(MAGENTA"[STERNIK %d] Przeszedłem dalej.\n"RESET, getpid());
 
                 if (flaga_zejscia == 1) {
                     continue;
@@ -121,8 +127,8 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
                 dodaj_pid(lista, pid_pasazera);
             }
             else {
-                printf(MAGENTA"[STERNIK %d] Pełna łódź, czas na odpływ.\n"RESET, getpid());
                 if (miejsce_na_pomoscie != max_pomostu || flaga_zejscia == 1) continue;
+                printf(MAGENTA"[STERNIK %d] Pełna łódź.\n"RESET, getpid());
                 etap = 2;
             }
         }
@@ -130,6 +136,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
         // tu będzie wyruszać w rejs
         if (etap == 2) {
             sleep(5); // symulacja rejsu
+            printf(MAGENTA"[STERNIK %d] Wróciliśmy.\n"RESET, getpid());
             etap = 3;
         }
 
@@ -140,9 +147,12 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
 
                 kill(usuniety, SIGTERM);
             }
+            printf(MAGENTA"[STERNIK %d] Pasażerowie wypuszczeni.\n"RESET, getpid());
             if (czy_minela_godzina(godzina_zamkniecia) || flaga_zejscia == 1) {
                 break;
             } else {
+                while (pobierz_wartosc_semafor(semid, id_pomostu) != max_pomostu && pobierz_wartosc_semafor(semid, id_lodzi) != max_lodzi) { sleep(1); }
+                printf(MAGENTA"[STERNIK %d] Zaczynam wpuszczać pasażerów.\n"RESET, getpid());
                 etap = 1;
             }
         }

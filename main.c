@@ -12,9 +12,7 @@
 #include "utils/semafor.h"
 #include "utils/czas.h"
 
-void handle_signal(int sig) {
-    printf("Received signal %d, ignoring termination.\n", sig);
-}
+void handle_signal(int sig) {}
 
 int main()
 {
@@ -26,7 +24,7 @@ int main()
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
 
-    int N1 = 5, N2 = 2, K = 2, T = 20;
+    int N1 = 5, N2 = 2, K = 2, T = 120;
     // Inicjalizacja IPC
     key_t key = ftok(FTOK_PATH, 'K');
     if (key == -1) {
@@ -41,11 +39,11 @@ int main()
     stworz_kolejke(key);
 
     // Procesy
-    pid_t policjant = stworz_policjanta(&godzina);
     pid_t kasjer = stworz_kasjera(&godzina);
     pid_t sternik_1 = stworz_sternika(1, K, N1, &godzina);
     pid_t sternik_2 = stworz_sternika(2, K, N2, &godzina);
     pid_t generator = stworz_generator_pasazerow(&godzina);
+    pid_t policjant = stworz_policjanta(&godzina);
 
     // Clean-up
     waitpid(generator, NULL, 0);

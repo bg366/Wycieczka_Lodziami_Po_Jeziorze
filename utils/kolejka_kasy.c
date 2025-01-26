@@ -28,7 +28,7 @@ void usun_kolejke(key_t klucz)
 
 int polacz_kolejke(key_t klucz)
 {
-    int msgid = msgget(klucz, IPC_CREAT | 0600);
+    int msgid = msgget(klucz, 0600);
     if (msgid == -1) {
         perror("msgget (connect)");
         return -1;

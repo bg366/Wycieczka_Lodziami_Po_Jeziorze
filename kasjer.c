@@ -37,9 +37,12 @@ void logika_kasjera(struct tm *godzina_zamkniecia)
     int zarobek = 0;
 
     int stop = 0;
+    int ilosc = 0;
+    int zaakceptowanych = 0;
+    int odrzuconych = 0;
     while(stop == 0)
     {
-        if (czy_minela_godzina(godzina_zamkniecia)) {
+        if (czy_minela_godzina(godzina_zamkniecia) || (flaga_zamkniecia_lodzi_1 == 1 && flaga_zamkniecia_lodzi_2 == 1)) {
             stop = 1;
             break;
         }
@@ -78,12 +81,29 @@ void logika_kasjera(struct tm *godzina_zamkniecia)
         int suma = 0;
         if (wiadomosc.wiek >= 3) suma+=2;
         if (wiadomosc.wiek_dziecka >= 3) suma+=2;
+        identyfikator_kolejki_t kolejka = wiadomosc.preferowana_lodz == 1 ? KOLEJKA_1_NORMALNA : KOLEJKA_2_NORMALNA;
         if (wiadomosc.powtarza_wycieczke)
         {
+            kolejka = wiadomosc.preferowana_lodz == 1 ? KOLEJKA_1_VIP : KOLEJKA_2_VIP;
             suma = suma / 2;
         }
 
-        zarobek += suma;
+        if (pobierz_liczbe_pasazerow(dw, kolejka) >= MAX_PASAZEROW)
+        {
+            odpowiedz.decyzja = 0;
+        }
+
+        if (odpowiedz.decyzja == 1) {
+            zarobek += suma;
+        }
+
+        if (odpowiedz.decyzja == 1) {
+            zaakceptowanych++;
+        } else {
+            odrzuconych++;
+        }
+
+        ilosc++;
 
         wynik = poinformuj_pasazera(msgid, &odpowiedz);
         if (wynik != 1) {
@@ -95,7 +115,7 @@ void logika_kasjera(struct tm *godzina_zamkniecia)
         }
         printf(CYAN"[KASJER %d] Obsłużyłem pasażera %d.\n"RESET, getpid(), wiadomosc.pid);
     }
-    printf(CYAN"[KASJER %d] Kończę.\n"RESET, getpid());
+    printf(CYAN"[KASJER %d] Kończę.\n Ilość obsłużonych klientów: %d, zaakecptowanych: %d, odrzuconych: %d Zarobiliśmy: %d PLN\n"RESET, getpid(), ilosc, zaakceptowanych, odrzuconych, zarobek);
     _exit(0);
 }
 

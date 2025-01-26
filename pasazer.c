@@ -124,7 +124,6 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
 
             // Pasażer czeka na wpuszczenie na statek
             char wiadomosc[20];
-            printf(GREEN"[PASAZER %d] Wchodzę na łódź.\n"RESET, getpid());
             wynik = odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof fifo_str);
             if (wynik != 0) {
                 if (flaga_zamkniecia_lodzi == 1) {
@@ -133,6 +132,7 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
                 }
                 continue;
             }
+            printf(GREEN"[PASAZER %d] Wchodzę na łódź.\n"RESET, getpid());
 
             // Wejście na łódź
             opusc_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? -2 : -1);

@@ -10,7 +10,7 @@
 #include <errno.h>
 
 #define MIN_SLEEP 1
-#define MAX_SLEEP 3
+#define MAX_SLEEP 1
 
 /* Funkcja pomocnicza generująca losową liczbę z przedziału [min, max] */
 static int losowy_okres_czasu(int min, int max)
