@@ -5,13 +5,6 @@
 #define PROJ_ID  'K'
 #include "../pasazer.h"
 
-typedef struct msg_request {
-    long  mtype;        // (kasjer_id + 1)
-    pid_t pid;          // PID klienta
-    double cost;        // wyliczony rachunek
-    int   cashier_id;   // który kasjer
-} msg_request_t;
-
 typedef struct {
     long mtype;
     pid_t pid;

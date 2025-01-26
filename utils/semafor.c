@@ -5,18 +5,42 @@
 #include <sys/types.h>
 #include <errno.h>
 
-int stworz_semafor(key_t klucz, int wartosc_poczatkowa)
+int stworz_semafor(key_t klucz, int max_pomost_1, int max_pomost_2, int max_lodz_1, int max_lodz_2)
 {
-    int semid = semget(klucz, 1, IPC_CREAT | 0666);
+    int semid = semget(klucz, 4, IPC_CREAT | 0666);
     if (semid == -1) {
         perror("semget");
         return -1;
     }
 
-    union semun arg;
-    arg.val = wartosc_poczatkowa;
+    union semun arg1;
+    arg1.val = max_pomost_1;
 
-    if (semctl(semid, 0, SETVAL, arg) == -1) {
+    if (semctl(semid, 0, SETVAL, arg1) == -1) {
+        perror("semctl(SETVAL)");
+        return -1;
+    }
+
+    union semun arg2;
+    arg2.val = max_pomost_2;
+
+    if (semctl(semid, 1, SETVAL, arg2) == -1) {
+        perror("semctl(SETVAL)");
+        return -1;
+    }
+
+    union semun arg3;
+    arg3.val = max_lodz_1;
+
+    if (semctl(semid, 2, SETVAL, arg3) == -1) {
+        perror("semctl(SETVAL)");
+        return -1;
+    }
+
+    union semun arg4;
+    arg4.val = max_lodz_2;
+
+    if (semctl(semid, 3, SETVAL, arg4) == -1) {
         perror("semctl(SETVAL)");
         return -1;
     }
@@ -25,7 +49,7 @@ int stworz_semafor(key_t klucz, int wartosc_poczatkowa)
 
 int podlacz_semafor(key_t klucz)
 {
-    int semid = semget(klucz, 1, IPC_CREAT | 0666);
+    int semid = semget(klucz, 1, 0666);
     if (semid == -1) {
         perror("semget");
         return -1;
@@ -44,12 +68,12 @@ int usun_semafor(int semid)
     return 0;
 }
 
-int pobierz_wartosc_semafor(int semid)
+int pobierz_wartosc_semafor(int semid, identyfikator_semaforu_t semafor)
 {
     if (semid < 0) return -1;
 
     union semun arg;
-    int val = semctl(semid, 0, GETVAL, arg);
+    int val = semctl(semid, semafor, GETVAL, arg);
     if (val == -1) {
         perror("semctl(GETVAL)");
         return -1;
@@ -57,12 +81,12 @@ int pobierz_wartosc_semafor(int semid)
     return val;
 }
 
-int opusc_semafor(int semid)
+int opusc_semafor(int semid, identyfikator_semaforu_t semafor)
 {
     if (semid < 0) return -1;
 
     struct sembuf sb;
-    sb.sem_num = 0;   /* mamy tylko jeden semafor w zestawie */
+    sb.sem_num = semafor;
     sb.sem_op = -1;   /* P: opuszczenie = decrement o 1 */
     sb.sem_flg = 0;   /* brak IPC_NOWAIT – jeśli 0, czekamy */
 
@@ -76,12 +100,12 @@ int opusc_semafor(int semid)
     return 0;
 }
 
-int podnies_semafor(int semid)
+int podnies_semafor(int semid, identyfikator_semaforu_t semafor)
 {
     if (semid < 0) return -1;
 
     struct sembuf sb;
-    sb.sem_num = 0;
+    sb.sem_num = semafor;
     sb.sem_op = +1;   /* V: increment o 1 */
     sb.sem_flg = 0;
 

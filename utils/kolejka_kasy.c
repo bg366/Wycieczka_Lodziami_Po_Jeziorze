@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include "kolejka_kasy.h"
-#define MSG_KEY 5678
 
 int stworz_kolejke(key_t klucz)
 {

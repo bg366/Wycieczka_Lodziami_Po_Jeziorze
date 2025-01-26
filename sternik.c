@@ -2,6 +2,7 @@
 #include "utils/fifo.h"
 #include "utils/interfejs.h"
 #include "utils/pamiec_wspoldzielona.h"
+#include "utils/semafor.h"
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <unistd.h>
@@ -22,7 +23,7 @@ przerwij_rejsy
 
 */
 
-void logika_sternika(int lodz)
+void logika_sternika(int lodz, int max_pomostu, int max_lodzi)
 {
     printf(MAGENTA"[STERNIK %d] Rozpoczynam logikę sternika...\n"RESET, getpid());
 
@@ -35,12 +36,15 @@ void logika_sternika(int lodz)
     snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", lodz);
     stworz_fifo(fifo_str);
     dane_wspolne_t* dw = dolacz_pamiec_wspoldzielona(key);
+    int semid = podlacz_semafor(key);
+
+    int id_pomostu = lodz == 1 ? SEM_POMOST_1 : SEM_POMOST_2;
+    int id_lodzi = lodz == 1 ? SEM_LODZ_1 : SEM_LODZ_2;
 
     int stop = 0;
     while(stop == 0)
     {
         if (dw->jest_koniec == 1) {
-            printf(MAGENTA"[STERNIK %d] Jest koniec.\n"RESET, getpid());
             stop = 1;
             break;
         }
@@ -60,23 +64,35 @@ void logika_sternika(int lodz)
         int ilosc_vip = pobierz_liczbe_pasazerow(dw, lodz == 1 ? KOLEJKA_1_VIP : KOLEJKA_2_VIP);
         int ilosc_normalna = pobierz_liczbe_pasazerow(dw, lodz == 1 ? KOLEJKA_1_NORMALNA : KOLEJKA_2_NORMALNA);
         if (ilosc_vip == 0 && ilosc_normalna == 0) {
-            sleep(3);
             continue;
         }
-        printf(MAGENTA"[STERNIK %d] Przeszedłem dalej.\n"RESET, getpid());
 
-        char osobisty_fifo_str[25];
-        odczytaj_wiadomosc_z_fifo(fifo_str, osobisty_fifo_str, sizeof osobisty_fifo_str);
-        printf(MAGENTA"[STERNIK %d] Odczytałem wiadomość.\n"RESET, getpid());
+        int miejsce_na_lodzi = pobierz_wartosc_semafor(semid, id_lodzi);
+        int miejsce_na_pomoscie = pobierz_wartosc_semafor(semid, id_pomostu);
+        if (miejsce_na_pomoscie == 0) {
+            continue;
+        }
+        if ((miejsce_na_lodzi - (max_pomostu - miejsce_na_pomoscie)) > 0) {
+            printf(MAGENTA"[STERNIK %d] Przeszedłem dalej.\n"RESET, getpid());
 
-        // Sternik wysyła wiadomość do pasażera
-        wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WPUSZCZONY");
-        printf(MAGENTA"[STERNIK %d] Wpuściłem pasażera.\n"RESET, getpid());
+            char osobisty_fifo_str[25];
+            odczytaj_wiadomosc_z_fifo(fifo_str, osobisty_fifo_str, sizeof osobisty_fifo_str);
+            // printf(MAGENTA"[STERNIK %d] Odczytałem wiadomość.\n"RESET, getpid());
 
-        // Sternik czeka na odpowiedź
-        char odpowiedz[20];
-        odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, odpowiedz, sizeof odpowiedz);
-        printf(MAGENTA"[STERNIK %d] Odnotowane.\n"RESET, getpid());
+            // Sternik wysyła wiadomość do pasażera
+            wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WPUSZCZONY");
+            // printf(MAGENTA"[STERNIK %d] Wpuściłem pasażera.\n"RESET, getpid());
+
+            // Sternik czeka na odpowiedź
+            char odpowiedz[20];
+            odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, odpowiedz, sizeof odpowiedz);
+            printf(MAGENTA"[STERNIK %d] Odnotowane.\n"RESET, getpid());
+        }
+        else {
+            printf(MAGENTA"[STERNIK %d] Pełna łódź, czas na odpływ.\n"RESET, getpid());
+            break;
+        }
+
 
         // tu będzie wyruszać w rejs
 
@@ -89,7 +105,7 @@ void logika_sternika(int lodz)
     _exit(0); // Bezpieczne zakończenie procesu potomnego
 }
 
-pid_t stworz_sternika(int lodz)
+pid_t stworz_sternika(int lodz, int max_pomostu, int max_lodzi)
 {
     pid_t pid = fork();
     if (pid < 0)
@@ -100,7 +116,7 @@ pid_t stworz_sternika(int lodz)
     if (pid == 0)
     {
         // Proces potomny
-        logika_sternika(lodz);
+        logika_sternika(lodz, max_pomostu, max_lodzi);
         // Nie powinno się tu dotrzeć, bo logika_sternika kończy proces
         _exit(0);
     }
