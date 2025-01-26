@@ -84,7 +84,6 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
                 char osobisty_fifo_str[25];
                 odczytaj_wiadomosc_z_fifo(ilosc_vip > 0 ? fifo_vip_str : fifo_str, osobisty_fifo_str, sizeof osobisty_fifo_str);
                 // printf(MAGENTA"[STERNIK %d] Odczytałem wiadomość.\n"RESET, getpid());
-                printf("OSOBISTY STRING: \n%s\n", osobisty_fifo_str);
 
                 // Sternik wysyła wiadomość do pasażera
                 wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WPUSZCZONY");

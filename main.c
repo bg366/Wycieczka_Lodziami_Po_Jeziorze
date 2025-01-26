@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "kasjer.h"
+#include "policjant.h"
 #include "sternik.h"
 #include "utils/interfejs.h"
 #include "utils/generator_pasazerow.h"
@@ -9,7 +10,6 @@
 #include "utils/pamiec_wspoldzielona.h"
 #include "utils/semafor.h"
 #include "utils/czas.h"
-#include "utils/sygnaly.h"
 
 int main()
 {
@@ -28,6 +28,7 @@ int main()
     stworz_kolejke(key);
 
     // Procesy
+    stworz_policjanta();
     stworz_kasjera(&godzina);
     for (int i = 1; i <= 2; i++) {
         stworz_sternika(i, K, i == 1 ? N1 : N2, &godzina);
