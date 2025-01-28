@@ -67,7 +67,7 @@ void logika_kasjera(struct tm *godzina_zamkniecia)
         }
         else
         {
-            if (wiadomosc.ma_dzieci || wiadomosc.wiek > 70)
+            if ((wiadomosc.ma_dzieci || wiadomosc.wiek > 70) && wiadomosc.powtarza_wycieczke != 1)
             {
                 odpowiedz.decyzja = 0;
             }
@@ -115,7 +115,7 @@ void logika_kasjera(struct tm *godzina_zamkniecia)
         }
         printf(CYAN"[KASJER %d] Obsłużyłem pasażera %d.\n"RESET, getpid(), wiadomosc.pid);
     }
-    printf(CYAN"[KASJER %d] Kończę.\n Ilość obsłużonych klientów: %d, zaakecptowanych: %d, odrzuconych: %d Zarobiliśmy: %d PLN\n"RESET, getpid(), ilosc, zaakceptowanych, odrzuconych, zarobek);
+    printf(CYAN"[KASJER %d] Kończę. Ilość obsłużonych klientów: %d, zaakecptowanych: %d, odrzuconych: %d Zarobiliśmy: %d PLN\n"RESET, getpid(), ilosc, zaakceptowanych, odrzuconych, zarobek);
     _exit(0);
 }
 

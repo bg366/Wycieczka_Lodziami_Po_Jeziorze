@@ -12,4 +12,5 @@
 #define RESET   "\x1b[0m"
 
 int setup_pamieci(int *N1, int *N2, int *K);
-int setup_sternikow(int *Tp, int *Tk, int *T1, int *T2);
+int setup_sternikow(int *T, int *T1, int *T2)
+;

@@ -25,9 +25,9 @@ int setup_pamieci(int *N1, int *N2, int *K)
             printf("Blad! Prosze podac poprawna liczbe calkowita.\n");
             continue;
         }
-        if (*N1 <= 0)
+        if (*N1 <= 2)
         {
-            printf("Pojemnosc lodzi (N1) musi byc liczba dodatnia!\n");
+            printf("Pojemnosc lodzi (N1) musi byc >=3!\n");
             continue;
         }
         break;
@@ -42,9 +42,9 @@ int setup_pamieci(int *N1, int *N2, int *K)
             printf("Blad! Prosze podac poprawna liczbe calkowita.\n");
             continue;
         }
-        if (*N2 <= 0)
+        if (*N2 <= 2)
         {
-            printf("Pojemnosc lodzi (N2) musi byc liczba dodatnia!\n");
+            printf("Pojemnosc lodzi (N2) musi musi byc >=3!\n");
             continue;
         }
         break;
@@ -58,9 +58,9 @@ int setup_pamieci(int *N1, int *N2, int *K)
             printf("Blad! Prosze podac poprawna liczbe calkowita.\n");
             continue;
         }
-        if (*K <= 0)
+        if (*K <= 1)
         {
-            printf("Pojemnosc pomostu (K) musi byc liczba dodatnia!\n");
+            printf("Pojemnosc pomostu (K) musi byc >=2!\n");
             continue;
         }
         if (*K >= *N1 || *K >= *N2)
@@ -80,32 +80,20 @@ int setup_pamieci(int *N1, int *N2, int *K)
     return 0;
 }
 
-int setup_sternikow(int *Tp, int *Tk, int *T1, int *T2)
+int setup_sternikow(int *T, int *T1, int *T2)
 {
     // Wczytaj Tp
     while (1)
     {
-        printf("Podaj czas poczatku rejsow (Tp) [liczba calkowita]: ");
-        if (!wczytaj_int(Tp))
+        printf("Podaj czas poczatku programu (T) [liczba calkowita sekund]: ");
+        if (!wczytaj_int(T))
         {
             printf("Blad! Prosze podac poprawna liczbe calkowita.\n");
             continue;
         }
-        // Jeżeli potrzebujesz sprawdzania, czy Tp >= 0 lub inny warunek, umieść go tutaj
-        break;
-    }
-
-    // Wczytaj Tk
-    while (1) {
-        printf("Podaj czas zakonczenia rejsow (Tk) [liczba calkowita]: ");
-        if (!wczytaj_int(Tk))
+        if (*T < 1)
         {
-            printf("Blad! Prosze podac poprawna liczbe calkowita.\n");
-            continue;
-        }
-        if (*Tk <= *Tp)
-        {
-            printf("Czas zakonczenia (Tk) musi byc wiekszy niz czas rozpoczecia (Tp)!\n");
+            printf("Czas zakonczenia (Tk) musi byc wiekszy niz 1!\n");
             continue;
         }
         break;
@@ -147,8 +135,7 @@ int setup_sternikow(int *Tp, int *Tk, int *T1, int *T2)
 
     // Wypisz podsumowanie
     printf("\n--- PODSUMOWANIE DANYCH STERNIKOW ---\n");
-    printf("Czas rozpoczecia rejsow (Tp): %d\n", *Tp);
-    printf("Czas zakonczenia rejsow (Tk): %d\n", *Tk);
+    printf("Czas trwania programu (T): %d\n", *T);
     printf("Czas trwania rejsu lodzi 1 (T1): %d sekund\n", *T1);
     printf("Czas trwania rejsu lodzi 2 (T2): %d sekund\n\n", *T2);
 

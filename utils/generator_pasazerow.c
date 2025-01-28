@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <time.h>
+#include <pthread.h>
 #include <errno.h>
 
 #define MIN_SLEEP 1
@@ -34,6 +35,24 @@ static void sig_handler_lodzie(int signo)
     zatrzymane_lodzie_flaga++;
 }
 
+static int etap_generacji = 0;
+
+void *watek_czyszczacy(void *arg) {
+    int status;
+    pid_t pid;
+
+    while (1) {
+        pid = waitpid(-1, &status, WNOHANG);
+        if (pid == -1 && etap_generacji != 0) {
+            if (errno == ECHILD && etap_generacji == 2) {
+                break;
+            }
+        }
+    }
+
+    return NULL;
+}
+
 /* Kod wykonywany przez proces generatora: w pętli tworzy pasażerów w losowych odstępach czasu, aż do otrzymania sygnału. */
 static void generuj_pasazerow(struct tm *godzina_zamkniecia)
 {
@@ -50,6 +69,7 @@ static void generuj_pasazerow(struct tm *godzina_zamkniecia)
 
         // Stwórz pasażera
         pid_t p = stworz_pasazera();
+        etap_generacji = 1;
         if (p > 0)
         {
             printf(YELLOW "[GENERATOR_PASAZEROW %d] Utworzono pasażera PID=%d\n" RESET, getpid(), p);
@@ -60,12 +80,16 @@ static void generuj_pasazerow(struct tm *godzina_zamkniecia)
         sleep(sl);
     }
 
+    etap_generacji = 2;
+
     printf(YELLOW "[GENERATOR_PASAZEROW %d] Kończę pętlę generatora (otrzymano sygnał).\n" RESET, getpid());
 }
 
 /* Uruchamia nowy proces – generator pasażerów */
 pid_t stworz_generator_pasazerow(struct tm *godzina_zamkniecia)
 {
+    pthread_t tid;
+
     pid_t pid = fork();
     if (pid < 0)
     {
@@ -74,6 +98,11 @@ pid_t stworz_generator_pasazerow(struct tm *godzina_zamkniecia)
     }
     if (pid == 0)
     {
+        // Stworzenie wątku czyszczącego
+        if (pthread_create(&tid, NULL, watek_czyszczacy, NULL) != 0) {
+            perror("pthread_create");
+        }
+
         // Proces potomny
         // Obsługa sygnału do zakończenia
         signal(SIGTERM, sig_handler);
@@ -82,15 +111,13 @@ pid_t stworz_generator_pasazerow(struct tm *godzina_zamkniecia)
 
         generuj_pasazerow(godzina_zamkniecia);
 
-        pid_t pid;
-        while ((pid = wait(NULL)) > 0) {
-            // printf("Child %d exited.\n", pid);
-        }
-
         printf(YELLOW "[GENERATOR_PASAZEROW %d] Exit\n" RESET, getpid());
+
+        pthread_join(tid, NULL);
 
         _exit(0);
     }
+
     return pid;
 }
 

@@ -1,11 +1,11 @@
 #include "sternik.h"
 #include "utils/fifo.h"
 #include "utils/interfejs.h"
+#include "utils/kolejka_sternika.h"
 #include "utils/pamiec_wspoldzielona.h"
 #include "utils/semafor.h"
 #include "utils/tablica_pid.h"
 #include <stdio.h>
-#include <string.h>
 #include <sys/ipc.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -18,16 +18,7 @@ static void sig_handler(int signo)
     flaga_zejscia = 1;
 }
 
-static pid_t wyciagnij_pid(const char *path) {
-    char *podkreslenie = strrchr(path, '_'); // Znajduje ostatni znak '_'
-    if (!podkreslenie) {
-        fprintf(stderr, "Błąd: Brak '_' w ścieżce!\n");
-        return -1;
-    }
-    return (pid_t)atoi(podkreslenie + 1); // Konwertuje część po '_'
-}
-
-void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzina_zamkniecia)
+void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzina_zamkniecia, int czas_rejsu)
 {
     printf(MAGENTA"[STERNIK %d] Rozpoczynam logikę sternika...\n"RESET, getpid());
 
@@ -36,6 +27,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
     {
         perror("ftok");
     }
+    int msgid = s_polacz_kolejke(key);
     char fifo_str[20];
     char fifo_vip_str[20];
     snprintf(fifo_str, sizeof(fifo_str), "/tmp/lodz_%d", lodz);
@@ -52,6 +44,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
 
     int etap = 1;
     int stop = 0;
+    int rejsy = 0;
     while(stop == 0)
     {
         if (flaga_zejscia == 1) {
@@ -91,7 +84,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
             int ilosc_normalna = pobierz_liczbe_pasazerow(dw, lodz == 1 ? KOLEJKA_1_NORMALNA : KOLEJKA_2_NORMALNA);
             if (ilosc_vip == 0 && ilosc_normalna == 0) {
                 printf(MAGENTA"[STERNIK %d] Brak ludzi.\n"RESET, getpid());
-                sleep(3);
+                sleep(1);
                 continue;
             }
 
@@ -99,49 +92,64 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
             int miejsce_na_pomoscie = pobierz_wartosc_semafor(semid, id_pomostu);
             if (miejsce_na_pomoscie == 0) {
                 printf(MAGENTA"[STERNIK %d] Brak miejsca.\n"RESET, getpid());
-                sleep(3);
+                sleep(1);
                 continue;
             }
-            if ((miejsce_na_lodzi - (max_pomostu - miejsce_na_pomoscie)) > 0) {
-                // printf(MAGENTA"[STERNIK %d] Przeszedłem dalej.\n"RESET, getpid());
+            if ((miejsce_na_lodzi - (max_pomostu - miejsce_na_pomoscie)) > 1) {
 
                 if (flaga_zejscia == 1) {
+                    printf(MAGENTA"[STERNIK %d] flaga zejscia.\n"RESET, getpid());
                     continue;
                 }
 
                 // Sternik sprawdza ostatnią wiadomość
-                char osobisty_fifo_str[25];
-                odczytaj_wiadomosc_z_fifo(ilosc_vip > 0 ? fifo_vip_str : fifo_str, osobisty_fifo_str, sizeof osobisty_fifo_str);
-                // printf(MAGENTA"[STERNIK %d] Odczytałem wiadomość.\n"RESET, getpid());
+                WiadomoscDoSternika wiadomosc;
+                int kolejka = lodz == 1 ? 2 : 4;
+
+                int wynik = s_odbierz_wiadomosc_pasazera(msgid, &wiadomosc, kolejka + 1);
+                if (wynik == 0) {
+                    wynik = s_odbierz_wiadomosc_pasazera(msgid, &wiadomosc, kolejka);
+                    if (wynik == 0) {
+                        sleep(1);
+                        continue;
+                    }
+                }
 
                 // Sternik wysyła wiadomość do pasażera
+                char osobisty_fifo_str[25];
+                snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", wiadomosc.pid);
                 wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WPUSZCZONY");
-                // printf(MAGENTA"[STERNIK %d] Wpuściłem pasażera.\n"RESET, getpid());
 
                 // Sternik czeka na odpowiedź
-                char odpowiedz[20];
+                char odpowiedz[25];
                 odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, odpowiedz, sizeof odpowiedz);
                 printf(MAGENTA"[STERNIK %d] Odnotowane.\n"RESET, getpid());
 
-                pid_t pid_pasazera = wyciagnij_pid(osobisty_fifo_str);
-                dodaj_pid(lista, pid_pasazera);
+                dodaj_pid(lista, wiadomosc.pid);
             }
             else {
-                if (miejsce_na_pomoscie != max_pomostu || flaga_zejscia == 1) continue;
+                if (miejsce_na_pomoscie != max_pomostu || flaga_zejscia == 1) {
+                    sleep(1);
+                    continue;
+                }
                 printf(MAGENTA"[STERNIK %d] Pełna łódź.\n"RESET, getpid());
                 etap = 2;
             }
         }
 
-        // tu będzie wyruszać w rejs
+        // Sternik wyrusza w rejs
         if (etap == 2) {
-            sleep(5); // symulacja rejsu
+            sleep(czas_rejsu); // symulacja rejsu
             printf(MAGENTA"[STERNIK %d] Wróciliśmy.\n"RESET, getpid());
+            rejsy++;
             etap = 3;
         }
 
-        // tu będzie wypuszczać pasażerów
+        // Sterik wypuszcza pasażerów
         if (etap == 3) {
+            if (flaga_zejscia == 0 && czy_minela_godzina(godzina_zamkniecia)) {
+                kill(0, lodz == 1 ? SIGUSR1 : SIGUSR2);
+            }
             while (lista->rozmiar > 0) {
                 pid_t usuniety = usun_pid(lista);
 
@@ -151,7 +159,7 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
             if (czy_minela_godzina(godzina_zamkniecia) || flaga_zejscia == 1) {
                 break;
             } else {
-                while (pobierz_wartosc_semafor(semid, id_pomostu) != max_pomostu && pobierz_wartosc_semafor(semid, id_lodzi) != max_lodzi) { sleep(1); }
+                while (pobierz_wartosc_semafor(semid, id_pomostu) != max_pomostu || pobierz_wartosc_semafor(semid, id_lodzi) != max_lodzi) { sleep(1); }
                 printf(MAGENTA"[STERNIK %d] Zaczynam wpuszczać pasażerów.\n"RESET, getpid());
                 etap = 1;
             }
@@ -162,11 +170,11 @@ void logika_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzin
 
     usun_tablice(lista);
 
-    printf(MAGENTA"[STERNIK %d] Kończę.\n"RESET, getpid());
+    printf(MAGENTA"[STERNIK %d] Kończę. Łódź nr %d odbyła %d rejsów\n"RESET, getpid(), lodz, rejsy);
     _exit(0); // Bezpieczne zakończenie procesu potomnego
 }
 
-pid_t stworz_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzina_zamkniecia)
+pid_t stworz_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzina_zamkniecia, int czas_rejsu)
 {
     pid_t pid = fork();
     if (pid < 0)
@@ -178,7 +186,7 @@ pid_t stworz_sternika(int lodz, int max_pomostu, int max_lodzi, struct tm *godzi
     {
         signal(lodz == 1 ? SIGUSR1 : SIGUSR2, sig_handler);
         // Proces potomny
-        logika_sternika(lodz, max_pomostu, max_lodzi, godzina_zamkniecia);
+        logika_sternika(lodz, max_pomostu, max_lodzi, godzina_zamkniecia, czas_rejsu);
         // Nie powinno się tu dotrzeć, bo logika_sternika kończy proces
         _exit(0);
     }

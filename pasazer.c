@@ -4,6 +4,7 @@
 #include "utils/kolejka_kasy.h"
 #include "utils/pamiec_wspoldzielona.h"
 #include "utils/semafor.h"
+#include "utils/kolejka_sternika.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -53,30 +54,34 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
     int semid = podlacz_semafor(key);
     dane_wspolne_t *dw = dolacz_pamiec_wspoldzielona(key);
 
-    int id_pomostu = dane->preferowana_lodz == 1 ? SEM_POMOST_1 : SEM_POMOST_2;
-    int id_lodzi = dane->preferowana_lodz == 1 ? SEM_LODZ_1 : SEM_LODZ_2;
+    int id_pomostu;
+    int id_lodzi;
     identyfikator_kolejki_t kolejka;
     identyfikator_kolejki_t lodz;
     pid_t pid = getpid();
-    if (dane->preferowana_lodz == 1) {
-        kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_1_VIP : KOLEJKA_1_NORMALNA;
-        lodz = LODZ_1;
-    } else {
-        kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_2_VIP : KOLEJKA_2_NORMALNA;
-        lodz = LODZ_2;
-    }
 
     // Pasażer tworzy osobistą listę fifo
     char osobisty_fifo_str[25];
     snprintf(osobisty_fifo_str, sizeof(osobisty_fifo_str), "/tmp/pasazer_%d", getpid());
     stworz_fifo(osobisty_fifo_str);
 
-    poinformuj_kasjera(msgid, dane);
 
     int etap = 1;
     while(etap != 0)
     {
         if (etap == 1) {
+            id_pomostu = dane->preferowana_lodz == 1 ? SEM_POMOST_1 : SEM_POMOST_2;
+            id_lodzi = dane->preferowana_lodz == 1 ? SEM_LODZ_1 : SEM_LODZ_2;
+            if (dane->preferowana_lodz == 1) {
+                kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_1_VIP : KOLEJKA_1_NORMALNA;
+                lodz = LODZ_1;
+            } else {
+                kolejka = dane->powtarza_wycieczke == 1 ? KOLEJKA_2_VIP : KOLEJKA_2_NORMALNA;
+                lodz = LODZ_2;
+            }
+
+            poinformuj_kasjera(msgid, dane);
+
             int wynik = 0;
             OdpowiedzKasjera odpowiedz;
             while (wynik == 0) {
@@ -104,27 +109,19 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
             dodaj_pasazera(dw, kolejka, pid);
 
             // Pasażer wysyła swój pid do sternika
-            char fifo_str[20];
-            snprintf(fifo_str, sizeof(fifo_str), dane->powtarza_wycieczke == 1 ? "/tmp/lodz_v_%d" : "/tmp/lodz_%d", dane->preferowana_lodz);
-            printf(GREEN"[PASAZER %d] Wysyłam PID sternikowi. %d %d\n"RESET, getpid(), dane->ma_dzieci, dane->preferowana_lodz);
+            printf(GREEN"[PASAZER %d] Wysyłam PID sternikowi.\n"RESET, getpid());
 
             if (flaga_zamkniecia_lodzi == 1) {
                 zdejmij_pasazera(dw, kolejka, &pid);
                 break;
             }
 
-            int wynik = wyslij_wiadomosc_do_fifo(fifo_str, osobisty_fifo_str);
-            if (wynik != 0) {
-                if (flaga_zamkniecia_lodzi == 1) {
-                    zdejmij_pasazera(dw, kolejka, &pid);
-                    break;
-                }
-                continue;
-            }
+            int wynik;
+            wynik = s_poinformuj_sternika(msgid, dane);
 
             // Pasażer czeka na wpuszczenie na statek
-            char wiadomosc[20];
-            wynik = odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof fifo_str);
+            char wiadomosc[25];
+            wynik = odczytaj_wiadomosc_z_fifo(osobisty_fifo_str, wiadomosc, sizeof wiadomosc);
             if (wynik != 0) {
                 if (flaga_zamkniecia_lodzi == 1) {
                     zdejmij_pasazera(dw, kolejka, &pid);
@@ -135,18 +132,16 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
             printf(GREEN"[PASAZER %d] Wchodzę na łódź.\n"RESET, getpid());
 
             // Wejście na łódź
-            opusc_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? -2 : -1);
             zdejmij_pasazera(dw, kolejka, &pid);
-            // printf(GREEN"[PASAZER %d] Wszedłem na pomost%d.\n"RESET, getpid(), dane->preferowana_lodz);
+            opusc_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? -2 : -1);
             wyslij_wiadomosc_do_fifo(osobisty_fifo_str, "WSZEDLEM");
 
             // Wchodzenie przez pomost
-            // printf(GREEN"[PASAZER %d] Czekam na semafor%d.\n"RESET, getpid(), dane->preferowana_lodz);
+            sleep(1);
 
             // Wejście na łódź
             opusc_semafor(semid, id_lodzi, dane->ma_dzieci == 1 ? -2 : -1);
             podnies_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? 2 : 1);
-            // printf(GREEN"[PASAZER %d] Czekam na pamiec%d.\n"RESET, getpid(), dane->preferowana_lodz);
             dodaj_pasazera(dw, lodz, pid);
             printf(GREEN"[PASAZER %d] Jestem na łodzi %d.\n"RESET, getpid(), dane->preferowana_lodz);
 
@@ -154,17 +149,17 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
         }
 
         if (etap == 3) {
-            // TODO: czeka na zejscie od sternika, ale przychodzi sigusr
             if (flaga_zejscia != 1) {
                 continue;
             }
             printf(GREEN"[PASAZER %d] Schodzę z łodzi.\n"RESET, getpid());
+
             // logika schodzenia ze statku
             opusc_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? -2 : -1);
             podnies_semafor(semid, id_lodzi, dane->ma_dzieci == 1 ? 2 : 1);
             zdejmij_pasazera(dw, lodz, &pid);
 
-            sleep(5); // symulacja przechodzenia przez pomost
+            sleep(1); // symulacja przechodzenia przez pomost
 
             podnies_semafor(semid, id_pomostu, dane->ma_dzieci == 1 ? 2 : 1);
             printf(GREEN"[PASAZER %d] Zszedłem z pomostu.\n"RESET, getpid());
@@ -186,27 +181,19 @@ void logika_pasazera(Pasazer *dane, pthread_t dziecko)
                 break;
             }
         }
-
-        break;
     }
     usun_fifo(osobisty_fifo_str);
 
     printf(GREEN"[PASAZER %d] Kończę.\n"RESET, getpid());
-    _exit(0); // Bezpieczne zakończenie procesu potomnego
+    exit(0); // Bezpieczne zakończenie procesu potomnego
 }
 
 void* logika_dziecka(void *arg) {
     Dziecko *dziecko = (Dziecko*)arg;
 
-    // printf(GREEN"[CHILD THREAD] Jestem dzieckiem pasażera %d, mam %d lat.\n"RESET,
-           // dziecko->id_rodzica, dziecko->wiek);
-
-    for (int i = 0; i < 5; i++) {
-        // printf(GREEN"[CHILD THREAD] Dziecko pasażera %d czeka...\n"RESET, dziecko->id_rodzica);
-        sleep(2);
+    for (int i = 0; i < 3; i++) {
+        sleep(1);
     }
-
-    // printf(GREEN"[CHILD THREAD] Dziecko pasażera %d kończy swoje działanie.\n"RESET, dziecko->id_rodzica);
 
     free(dziecko);
 
@@ -275,7 +262,7 @@ pid_t stworz_pasazera()
         // Proces potomny
         logika_pasazera(&dane, dziecko);
         // Nie powinno się tu dotrzeć, bo logika_pasazera kończy proces
-        _exit(0);
+        exit(0);
     }
     // Zwracamy PID dziecka
     return pid;

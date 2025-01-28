@@ -1,3 +1,4 @@
+#include "kolejka_sternika.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,9 +6,8 @@
 #include <sys/msg.h>
 #include <unistd.h>
 #include <errno.h>
-#include "kolejka_kasy.h"
 
-int stworz_kolejke(key_t klucz)
+int s_stworz_kolejke(key_t klucz)
 {
     int msgid = msgget(klucz, IPC_CREAT | 0600);
     if (msgid == -1) {
@@ -17,7 +17,7 @@ int stworz_kolejke(key_t klucz)
     return msgid;
 }
 
-void usun_kolejke(key_t klucz)
+void s_usun_kolejke(key_t klucz)
 {
     int msgid = msgget(klucz, 0);
     if (msgctl(msgid, IPC_RMID, NULL) == -1) {
@@ -25,7 +25,7 @@ void usun_kolejke(key_t klucz)
     }
 }
 
-int polacz_kolejke(key_t klucz)
+int s_polacz_kolejke(key_t klucz)
 {
     int msgid = msgget(klucz, 0600);
     if (msgid == -1) {
@@ -35,19 +35,14 @@ int polacz_kolejke(key_t klucz)
     return msgid;
 }
 
-int poinformuj_kasjera(int msgid, Pasazer *dane)
+int s_poinformuj_sternika(int msgid, Pasazer *dane)
 {
-    WiadomoscPasazera wiadomosc;
-    wiadomosc.mtype = 1;
+    WiadomoscDoSternika wiadomosc;
+    wiadomosc.mtype = (dane->preferowana_lodz == 1 ? 2 : 4) + dane->powtarza_wycieczke;
     wiadomosc.pid = getpid();
-    wiadomosc.ma_dzieci = dane->ma_dzieci;
-    wiadomosc.powtarza_wycieczke = dane->powtarza_wycieczke;
-    wiadomosc.preferowana_lodz = dane->preferowana_lodz;
-    wiadomosc.wiek_dziecka = dane->wiek_dziecka;
-    wiadomosc.wiek = dane->wiek;
 
     // Wysłanie zgłoszenia do kasjera
-    if (msgsnd(msgid, &wiadomosc, sizeof(WiadomoscPasazera) - sizeof(long), 0) == -1)
+    if (msgsnd(msgid, &wiadomosc, sizeof(WiadomoscDoSternika) - sizeof(long), 0) == -1)
     {
         if (errno == EIDRM) {
             printf("❌ Kolejka komunikatów została usunięta!\n");
@@ -64,9 +59,9 @@ int poinformuj_kasjera(int msgid, Pasazer *dane)
     return 1;
 }
 
-int poinformuj_pasazera(int msgid, OdpowiedzKasjera *odpowiedz)
+int s_poinformuj_pasazera(int msgid, OdpowiedzSternika *odpowiedz)
 {
-    if (msgsnd(msgid, odpowiedz, sizeof(OdpowiedzKasjera) - sizeof(long), 0) == -1)
+    if (msgsnd(msgid, odpowiedz, sizeof(OdpowiedzSternika) - sizeof(long), 0) == -1)
     {
         if (errno == EIDRM) {
             printf("❌ Kolejka komunikatów została usunięta!\n");
@@ -83,9 +78,9 @@ int poinformuj_pasazera(int msgid, OdpowiedzKasjera *odpowiedz)
     return 1;
 }
 
-int odbierz_wiadomosc_kasjera(int msgid, OdpowiedzKasjera *dane)
+int s_odbierz_wiadomosc_sternika(int msgid, OdpowiedzSternika *dane)
 {
-    if (msgrcv(msgid, dane, sizeof(OdpowiedzKasjera) - sizeof(long), getpid(), IPC_NOWAIT) == -1)
+    if (msgrcv(msgid, dane, sizeof(OdpowiedzSternika) - sizeof(long), getpid(), IPC_NOWAIT) == -1)
     {
         if (errno == ENOMSG) {
             return 0;
@@ -98,9 +93,9 @@ int odbierz_wiadomosc_kasjera(int msgid, OdpowiedzKasjera *dane)
     return 1;
 }
 
-int odbierz_wiadomosc_pasazera(int msgid, WiadomoscPasazera *wiadomosc)
+int s_odbierz_wiadomosc_pasazera(int msgid, WiadomoscDoSternika *wiadomosc, int kolejka)
 {
-    if (msgrcv(msgid, wiadomosc, sizeof(WiadomoscPasazera) - sizeof(long), 1, IPC_NOWAIT) == -1)
+    if (msgrcv(msgid, wiadomosc, sizeof(WiadomoscDoSternika) - sizeof(long), kolejka, IPC_NOWAIT) == -1)
     {
         if (errno == ENOMSG) {
             return 0;

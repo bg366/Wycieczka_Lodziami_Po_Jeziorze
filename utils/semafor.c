@@ -86,7 +86,7 @@ int opusc_semafor(int semid, identyfikator_semaforu_t semafor, short ilosc)
 
     struct sembuf sb;
     sb.sem_num = semafor;
-    sb.sem_op = ilosc;   /* P: opuszczenie = decrement o 1 */
+    sb.sem_op = ilosc;
     sb.sem_flg = 0;   /* brak IPC_NOWAIT – jeśli 0, czekamy */
 
     if (semop(semid, &sb, 1) == -1) {
@@ -105,7 +105,7 @@ int podnies_semafor(int semid, identyfikator_semaforu_t semafor, short ilosc)
 
     struct sembuf sb;
     sb.sem_num = semafor;
-    sb.sem_op = ilosc;   /* V: increment o 1 */
+    sb.sem_op = ilosc;
     sb.sem_flg = 0;
 
     if (semop(semid, &sb, 1) == -1) {
